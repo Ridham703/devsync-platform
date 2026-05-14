@@ -27,25 +27,19 @@ const app = express();
 const server = http.createServer(app);
 
 // Security & Performance Middlewares
-app.use(helmet({
-  crossOriginResourcePolicy: false, // Allow loading local uploads
-}));
-app.use(compression());
-app.use(morgan('dev'));
-
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'https://devsync-platform.vercel.app',
-  process.env.CLIENT_URL
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+  origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      process.env.CLIENT_URL
+    ];
+    // Allow if in allowed list OR if it's a Vercel deployment
+    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error('CORS Not Allowed'));
+      callback(new Error('CORS blocked by DevSync Security Policy'));
     }
   },
   credentials: true,
@@ -53,7 +47,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(compression());
+app.use(morgan('dev'));
 app.use(express.json());
+
+// Rate Limiting
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -101,15 +103,17 @@ mongoose.connect(MONGO_URI)
 // 🔌 Configure Real-Time Engine via Socket.io
 const io = new Server(server, {
   cors: {
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'https://devsync-platform.vercel.app',
-    process.env.CLIENT_URL
-  ],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  credentials: true
-}
+    origin: (origin, callback) => {
+      const allowed = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', process.env.CLIENT_URL];
+      if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    methods: ['GET', 'POST', 'PATCH'],
+    credentials: true
+  }
 });
 
 app.set('io', io);

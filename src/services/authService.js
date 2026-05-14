@@ -1,6 +1,7 @@
 import api from './api';
 
 export const registerUser = async (userData) => {
+  // Expects { username, email, password, otp }
   const response = await api.post('/auth/register', userData);
   if (response.data && response.data.token) {
     localStorage.setItem('devsync_token', response.data.token);
@@ -28,13 +29,13 @@ export const getCurrentUser = () => {
   return user ? JSON.parse(user) : null;
 };
 
-export const checkUser = async (email) => {
-  const response = await api.post('/auth/check-user', { email });
+export const sendOtp = async (email, type) => {
+  const response = await api.post('/auth/send-otp', { email, type });
   return response.data;
 };
 
-export const resetPassword = async (email, newPassword) => {
-  const response = await api.post('/auth/reset-password', { email, newPassword });
+export const resetPassword = async (email, otp, newPassword) => {
+  const response = await api.post('/auth/reset-password', { email, otp, newPassword });
   return response.data;
 };
 
@@ -43,7 +44,7 @@ const authService = {
   loginUser,
   logoutUser,
   getCurrentUser,
-  checkUser,
+  sendOtp,
   resetPassword
 };
 

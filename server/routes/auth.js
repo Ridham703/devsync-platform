@@ -16,35 +16,49 @@ const generateToken = (id) => {
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// @desc    Send simulated OTP (Signup & Recovery)
-// @desc    Verify user existence for recovery
-// @route   POST /api/auth/check-user
-router.post('/check-user', async (req, res) => {
-  const { email } = req.body;
-
+// @desc    Step 1: Send OTP for Signup or Reset
+// @route   POST /api/auth/send-otp
+router.post('/send-otp', async (req, res) => {
+  const { email, type } = req.body; // 'signup' or 'reset'
   try {
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    // For reset, check if user exists
+    if (type === 'reset') {
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ message: 'No account found with this email' });
     }
 
-    const userExists = await User.findOne({ email });
-    if (!userExists) {
-      return res.status(404).json({ message: 'No account found with this email address' });
-    }
+    const otp = generateOTP();
+    await OTP.deleteMany({ email });
+    await OTP.create({ email, otp });
 
-    res.json({ exists: true, message: 'Account validated.' });
+    await sendEmail({
+      to: email,
+      subject: type === 'signup' ? 'Verify Your DevSync Account' : 'Password Reset Request',
+      html: generateOTPHtml(otp, type)
+    });
+
+    res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
+// @desc    Step 2 Signup: Verify OTP and Register
+// @route   POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, otp } = req.body;
 
   try {
-    // Validate input
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'All registration details are required' });
+    if (!username || !email || !password || !otp) {
+      return res.status(400).json({ message: 'All details and OTP are required' });
+    }
+
+    // Verify OTP
+    const validOtp = await OTP.findOne({ email, otp });
+    if (!validOtp) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
     // Check duplicates
@@ -53,12 +67,16 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Username or email already exists' });
     }
 
-    // Create User
+    // Create User (verified)
     const user = await User.create({
       username,
       email,
-      password
+      password,
+      isVerified: true
     });
+
+    // Cleanup OTP
+    await OTP.deleteMany({ email });
 
     res.status(201).json({
       _id: user._id,
@@ -68,6 +86,37 @@ router.post('/register', async (req, res) => {
       role: user.role,
       token: generateToken(user._id)
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Step 2 Reset: Verify OTP and Change Password
+// @route   POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+
+    // Verify OTP
+    const validOtp = await OTP.findOne({ email, otp });
+    if (!validOtp) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.password = newPassword;
+    await user.save();
+
+    // Cleanup OTP
+    await OTP.deleteMany({ email });
+
+    res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -83,14 +132,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // Find and verify user
     const user = await User.findOne({ email }).select('+password');
     
     if (user && (await user.comparePassword(password))) {
-      // Handle legacy users without avatars
-      if (!user.avatar) {
-        user.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random&color=fff&size=128`;
-        await user.save();
+      // Check if verified (optional: you can block login if not verified)
+      if (!user.isVerified) {
+        return res.status(401).json({ message: 'Please verify your email before logging in' });
       }
 
       res.json({
@@ -104,31 +151,6 @@ router.post('/login', async (req, res) => {
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
     }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// @desc    Reset Password Directly
-// @route   POST /api/auth/reset-password
-router.post('/reset-password', async (req, res) => {
-  const { email, newPassword } = req.body;
-
-  try {
-    if (!email || !newPassword) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Load user and overwrite password triggering model hooks
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User no longer exists' });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    res.json({ message: 'Password update complete. Please log in again.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
