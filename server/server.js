@@ -34,7 +34,11 @@ app.use(compression());
 app.use(morgan('dev'));
 
 const corsOptions = {
-  origin: process.env.CLIENT_URL || ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: [
+    process.env.CLIENT_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -81,8 +85,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/devsync';
 const PORT = process.env.PORT || 5000;
 
 mongoose.connect(MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => {
-    // Fail silently or log to error monitoring in real prod
+    console.error("MongoDB Error:", err);
   });
 
 // 🔌 Configure Real-Time Engine via Socket.io
