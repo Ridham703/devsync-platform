@@ -33,18 +33,26 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('dev'));
 
-const corsOptions = {
-  origin: [
-    process.env.CLIENT_URL,
-    'http://localhost:5173',
-    'http://127.0.0.1:5173'
-  ],
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://devsync-platform.vercel.app',
+  process.env.CLIENT_URL
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS Not Allowed'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
+}));
 
-app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rate Limiting
@@ -93,10 +101,15 @@ mongoose.connect(MONGO_URI)
 // 🔌 Configure Real-Time Engine via Socket.io
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    methods: ['GET', 'POST', 'PATCH'],
-    credentials: true
-  }
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://devsync-platform.vercel.app',
+    process.env.CLIENT_URL
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true
+}
 });
 
 app.set('io', io);
