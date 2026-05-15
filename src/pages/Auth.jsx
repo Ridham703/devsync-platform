@@ -86,7 +86,8 @@ const Auth = () => {
     setSuccess('');
 
     try {
-      await authService.sendOtp(email, 'signup');
+      const normalizedEmail = email.toLowerCase().trim();
+      await authService.sendOtp(normalizedEmail, 'signup');
       setOtpSent(true);
       setSuccess('OTP sent successfully to your email');
     } catch (err) {
@@ -109,8 +110,9 @@ const Auth = () => {
     setSuccess('');
 
     try {
+      const normalizedEmail = email.toLowerCase().trim();
       // Trigger OTP dispatch for 'reset' type
-      await authService.sendOtp(email, 'reset');
+      await authService.sendOtp(normalizedEmail, 'reset');
       setSuccess('Recovery code sent! Please check your inbox.');
       setStep('reset');
     } catch (err) {
