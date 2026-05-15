@@ -5,33 +5,26 @@ import nodemailer from 'nodemailer';
  */
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // SSL is generally faster than STARTTLS on 587
+  port: 587,
+  secure: false, // Use STARTTLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
-  pool: true,
-  maxConnections: 5,
-  rateLimit: 1, // 1 email per second
-  connectionTimeout: 5000,
-  socketTimeout: 5000
+  tls: {
+    rejectUnauthorized: false // Helps in some restricted networks
+  },
+  connectionTimeout: 10000,
+  socketTimeout: 10000
 });
 
-// Verify SMTP connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ SMTP Connection Error:', error.message);
-  } else {
-    console.log('✅ SMTP Server is ready to deliver messages');
-  }
-});
+// SMTP will be verified on first send attempt
 
 /**
  * Delivers transactional emails with professional formatting
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
-  const from = process.env.EMAIL_USER; // Simplest format
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
   // Fallback to Ethereal ONLY if explicitly in test mode or if credentials are missing
   if (process.env.NODE_ENV === 'test' || (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
@@ -50,7 +43,10 @@ export const sendEmail = async ({ to, subject, html, text }) => {
   }
 
   try {
-    const info = await transporter.sendMail({
+    console.log(`[EMAIL-DEBUG] Attempting to deliver email to ${to}...`);
+    
+    // Hard 20-second timeout to prevent hanging the API
+    const emailPromise = transporter.sendMail({
       from,
       to,
       subject,
@@ -58,6 +54,12 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       html,
       priority: 'high'
     });
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email delivery timed out after 20 seconds')), 20000)
+    );
+
+    const info = await Promise.race([emailPromise, timeoutPromise]);
 
     console.log(`✅ Email sent successfully to ${to}: ${info.messageId}`);
     return info;
