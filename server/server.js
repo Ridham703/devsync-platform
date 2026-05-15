@@ -27,25 +27,30 @@ const app = express();
 const server = http.createServer(app);
 
 // Security & Performance Middlewares
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'https://devsync-platform.vercel.app',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:5174',
-      process.env.CLIENT_URL
-    ];
-    // Allow if in allowed list OR if it's a Vercel deployment
-    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error('CORS blocked by DevSync Security Policy'));
+      console.warn(`[SECURITY] CORS blocked for origin: ${origin}`);
+      callback(null, false); // Don't throw Error, just return false
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(helmet({
   crossOriginResourcePolicy: false,
@@ -104,8 +109,7 @@ mongoose.connect(MONGO_URI)
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      const allowed = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', process.env.CLIENT_URL];
-      if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         callback(null, true);
       } else {
         callback(null, false);
