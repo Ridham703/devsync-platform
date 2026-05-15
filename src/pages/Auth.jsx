@@ -19,14 +19,27 @@ const Auth = () => {
   
   // Status/Feedbacks
   const [isLoading, setIsLoading] = useState(false);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
   const navigate = useNavigate();
 
-  // Handle Submit for standard Login / Initial Signup
+  // Handle Submit for standard Login / Final Signup
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!isLogin) {
+      if (!name || !email || !password || !otp) {
+        return setError('All fields including OTP are required');
+      }
+      if (otp.length !== 6) {
+        return setError('OTP must be 6 digits');
+      }
+    }
+
     setIsLoading(true);
     setError('');
     setSuccess('');
@@ -37,8 +50,8 @@ const Auth = () => {
         await authService.loginUser({ email, password });
         navigate('/dashboard');
       } else {
-        // Register directly without intermediate OTP wall!
-        await authService.registerUser({ username: name, email, password });
+        // Register with OTP
+        await authService.registerUser({ username: name, email, password, otp });
         navigate('/dashboard');
       }
     } catch (err) {
@@ -46,6 +59,25 @@ const Auth = () => {
       setError(err.response?.data?.message || 'Connection issues. Is server running?');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!email) return setError('Please enter your email first');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Invalid email format');
+
+    setIsOtpLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await authService.sendOtp(email, 'signup');
+      setOtpSent(true);
+      setSuccess('OTP sent successfully to your email');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setIsOtpLoading(false);
     }
   };
 
@@ -135,25 +167,31 @@ const Auth = () => {
           <AnimatePresence mode="wait">
             {error && (
               <motion.div 
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl flex items-center gap-2 text-xs"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-start gap-3 text-[13px] backdrop-blur-md shadow-lg"
               >
-                <ShieldAlert size={15} className="flex-shrink-0" />
-                <span>{error}</span>
+                <ShieldAlert size={18} className="flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-500 mb-0.5">Authentication Error</p>
+                  <p className="opacity-90">{error}</p>
+                </div>
               </motion.div>
             )}
             
             {success && (
               <motion.div 
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mb-6 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center gap-2 text-xs"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-start gap-3 text-[13px] backdrop-blur-md shadow-lg"
               >
-                <ShieldCheck size={15} className="flex-shrink-0" />
-                <span>{success}</span>
+                <ShieldCheck size={18} className="flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-emerald-500 mb-0.5">Success</p>
+                  <p className="opacity-90">{success}</p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -227,18 +265,54 @@ const Auth = () => {
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 ml-1">Work Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                    <input
-                      required
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="alex@company.com"
-                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl focus:border-primary/50 focus:ring-0 outline-none text-foreground placeholder:text-muted-foreground/50 text-sm transition-all"
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                      <input
+                        required
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="alex@company.com"
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl focus:border-primary/50 focus:ring-0 outline-none text-foreground placeholder:text-muted-foreground/50 text-sm transition-all"
+                      />
+                    </div>
+                    {!isLogin && (
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        disabled={isOtpLoading || otpSent}
+                        className="px-4 py-3 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold rounded-xl hover:bg-primary/20 disabled:opacity-50 transition-all whitespace-nowrap"
+                      >
+                        {isOtpLoading ? (
+                          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        ) : otpSent ? "Resend" : "Send OTP"}
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {!isLogin && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2"
+                  >
+                    <label className="text-xs font-medium text-zinc-400 ml-1">6-Digit OTP</label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                      <input
+                        required={!isLogin}
+                        type="text"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter 6-digit code"
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl focus:border-primary/50 focus:ring-0 outline-none text-foreground placeholder:text-muted-foreground/50 text-sm transition-all tracking-[0.2em] font-mono"
+                      />
+                    </div>
+                  </motion.div>
+                )}
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
