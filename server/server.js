@@ -99,10 +99,16 @@ app.get('/', (req, res) => {
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/devsync';
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
+console.log('⏳ Connecting to MongoDB...');
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+})
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
   .catch(err => {
-    console.error("MongoDB Error:", err);
+    console.error("❌ MongoDB Connection Error:", err.message);
+    if (err.message.includes('timeout')) {
+      console.log("💡 Suggestion: Check your Atlas IP whitelist or internet connection.");
+    }
   });
 
 // 🔌 Configure Real-Time Engine via Socket.io

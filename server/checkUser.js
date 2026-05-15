@@ -17,22 +17,16 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-async function checkUser() {
+async function checkAllUsers() {
   try {
-    const user = await User.findOne({ 
-      $or: [
-        { username: { $regex: 'ridham', $options: 'i' } },
-        { email: { $regex: 'ridham', $options: 'i' } }
-      ]
-    });
-    console.log('--- USER INFO IN DATABASE ---');
-    if (user) {
-      console.log('ID:', user._id);
-      console.log('Username:', user.username);
-      console.log('Email:', user.email);
-      console.log('Role:', user.role);
+    const users = await User.find({});
+    console.log('--- ALL USERS IN DATABASE ---');
+    if (users.length > 0) {
+      users.forEach(user => {
+        console.log(`ID: ${user._id} | Username: ${user.username} | Email: ${user.email} | Role: ${user.role} | Verified: ${user.isVerified}`);
+      });
     } else {
-      console.log('User not found in DB.');
+      console.log('No users found in DB.');
     }
   } catch (error) {
     console.error('Error:', error);
@@ -41,4 +35,4 @@ async function checkUser() {
   }
 }
 
-checkUser();
+checkAllUsers();

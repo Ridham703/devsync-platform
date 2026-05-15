@@ -25,7 +25,22 @@ const Auth = () => {
   const [success, setSuccess] = useState('');
   
   const navigate = useNavigate();
+  
+  // Auto-redirect if already logged in
+  React.useEffect(() => {
+    if (authService.getCurrentUser()) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
+  const clearForm = () => {
+    setError('');
+    setSuccess('');
+    setOtp('');
+    setPassword('');
+    setNewPassword('');
+    setOtpSent(false);
+  };
   // Handle Submit for standard Login / Final Signup
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -84,15 +99,19 @@ const Auth = () => {
   // Verify OTP + Register Account (DEPRECATED - direct signup enabled)
   const handleOTPVerify = async (e) => { e.preventDefault(); };
 
-  // Advance directly to New Password view
+  // Step 1: Request OTP for password reset
   const handleForgotSubmit = async (e) => {
     e.preventDefault();
+    if (!email) return setError('Please enter your email first');
+
     setIsLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      // Assert that the user actually exists in our MongoDB instance first!
-      await authService.checkUser(email);
+      // Trigger OTP dispatch for 'reset' type
+      await authService.sendOtp(email, 'reset');
+      setSuccess('Recovery code sent! Please check your inbox.');
       setStep('reset');
     } catch (err) {
       setError(err.response?.data?.message || 'No registered account linked to this email.');
@@ -101,21 +120,25 @@ const Auth = () => {
     }
   };
 
-  // Finalize recovery Directly
+  // Step 2: Verify OTP and finalize recovery
   const handlePasswordReset = async (e) => {
     e.preventDefault();
+    if (!otp || otp.length !== 6) return setError('Please enter the 6-digit recovery code');
+    if (!newPassword || newPassword.length < 6) return setError('Password must be at least 6 characters');
+
     setIsLoading(true);
     setError('');
 
     try {
-      await authService.resetPassword(email, newPassword);
+      await authService.resetPassword(email, otp, newPassword);
       setSuccess('Profile secured! Please sign in with your new credentials.');
       setStep('form');
       setIsLogin(true);
       setOtp('');
+      setNewPassword('');
       setPassword('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Recovery failed.');
+      setError(err.response?.data?.message || 'Recovery failed. Invalid code or connection error.');
     } finally {
       setIsLoading(false);
     }
@@ -205,7 +228,7 @@ const Auth = () => {
               <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-8">
                 <button
                   type="button"
-                  onClick={() => { setIsLogin(true); setError(''); }}
+                  onClick={() => { setIsLogin(true); clearForm(); }}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all relative ${
                     isLogin ? 'text-white' : 'text-muted-foreground hover:text-white'
                   }`}
@@ -221,7 +244,7 @@ const Auth = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setIsLogin(false); setError(''); }}
+                  onClick={() => { setIsLogin(false); clearForm(); }}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all relative ${
                     !isLogin ? 'text-white' : 'text-muted-foreground hover:text-white'
                   }`}
@@ -431,12 +454,28 @@ const Auth = () => {
             <form onSubmit={handlePasswordReset} className="space-y-5">
               
               <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 ml-1">Recovery Code</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <input
+                    required
+                    autoFocus
+                    type="text"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit code"
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl focus:border-primary/50 focus:ring-0 outline-none text-foreground placeholder:text-muted-foreground/50 text-sm transition-all tracking-[0.2em] font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 ml-1">Choose New Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                   <input
                     required
-                    autoFocus
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}

@@ -29,14 +29,20 @@ const generateOTPCode = () => Math.floor(100000 + Math.random() * 900000).toStri
 
 // @desc    Step 1: Send OTP for Signup or Reset
 // @route   POST /api/auth/send-otp
-router.post('/send-otp', validateSendOtp, async (req, res) => {
+router.post('/send-otp', otpLimiter, validateSendOtp, async (req, res) => {
   const { email, type } = req.body;
   try {
     console.log(`[AUTH] OTP request received for: ${email} (Type: ${type})`);
 
     if (type === 'signup') {
       const userExists = await User.findOne({ email });
-      if (userExists) return res.status(400).json({ message: 'User already exists with this email' });
+      if (userExists) {
+        if (userExists.isVerified) {
+          return res.status(400).json({ message: 'User already exists and is verified. Please log in.' });
+        }
+        // If user exists but not verified, allow sending OTP to complete verification
+        console.log(`[AUTH] Unverified user ${email} requesting new OTP for verification.`);
+      }
     }
 
     if (type === 'reset') {
@@ -148,8 +154,17 @@ router.post('/login', validateLogin, async (req, res) => {
   try {
     const user = await User.findOne({ email }).select('+password');
     
-    if (user && (await user.comparePassword(password))) {
+    if (!user) {
+      console.log(`[AUTH-LOGIN] User not found: ${email}`);
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    console.log(`[AUTH-LOGIN] Password match for ${email}: ${isMatch}`);
+
+    if (isMatch) {
       if (!user.isVerified) {
+        console.log(`[AUTH-LOGIN] User not verified: ${email}`);
         return res.status(401).json({ message: 'Please verify your email before logging in' });
       }
 

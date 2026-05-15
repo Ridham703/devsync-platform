@@ -39,7 +39,10 @@ const Layout = () => {
   };
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      navigate('/auth', { replace: true });
+      return;
+    }
 
     fetchNotifications();
 
