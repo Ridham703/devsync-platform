@@ -186,7 +186,7 @@ const Auth = () => {
           </p>
         </div>
 
-        <GlassCard className="shadow-3xl border border-white/10 p-8 relative">
+        <GlassCard className="shadow-3xl border border-white/10 p-6 sm:p-8 relative">
           
           {/* Validation Status Banners */}
           <AnimatePresence mode="wait">

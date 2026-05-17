@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,16 +12,21 @@ import {
   Activity,
   Terminal,
   Sun,
-  Moon
+  Moon,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 
-const Sidebar = () => {
+const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    if (isMobileOpen) setIsCollapsed(false);
+  }, [isMobileOpen]);
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -32,34 +37,58 @@ const Sidebar = () => {
   ];
 
   return (
-    <motion.aside
-      initial={{ width: 260 }}
-      animate={{ width: isCollapsed ? 80 : 260 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="h-screen sticky top-0 border-r border-white/10 bg-black/40 backdrop-blur-xl flex flex-col justify-between z-20 relative"
-    >
-      {/* Toggle button */}
+    <>
+      <AnimatePresence>
+        {isMobileOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileOpen(false)}
+            className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.aside
+        initial={false}
+        animate={{ width: isCollapsed ? 80 : 260 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={cn(
+          "h-screen border-r border-white/10 bg-[#0d0d12]/95 md:bg-black/40 backdrop-blur-xl flex flex-col justify-between z-40 transition-transform duration-300",
+          "fixed md:sticky top-0 left-0",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
+      {/* Toggle button - hidden on mobile since mobile uses drawer */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-6 -right-3 bg-primary rounded-full p-1 border border-white/10 hover:bg-primary/80 transition-colors z-30"
+        className="hidden md:block absolute top-6 -right-3 bg-primary rounded-full p-1 border border-white/10 hover:bg-primary/80 transition-colors z-30"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
       <div>
         {/* Logo */}
-        <div className={cn("p-6 flex items-center gap-3 border-b border-white/5 h-20", isCollapsed ? "justify-center" : "")}>
-          <div className="bg-gradient-to-br from-primary to-purple-600 p-2.5 rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]">
-            <Terminal size={20} />
+        <div className={cn("p-6 flex items-center gap-3 border-b border-white/5 h-20", isCollapsed ? "justify-center" : "justify-between")}>
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-primary to-purple-600 p-2.5 rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]">
+              <Terminal size={20} />
+            </div>
+            {!isCollapsed && (
+              <motion.span 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="font-bold text-xl tracking-tight text-gradient font-sans"
+              >
+                DevSync
+              </motion.span>
+            )}
           </div>
-          {!isCollapsed && (
-            <motion.span 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="font-bold text-xl tracking-tight text-gradient font-sans"
-            >
-              DevSync
-            </motion.span>
+          {isMobileOpen && (
+            <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-muted-foreground p-1">
+              <X size={20} />
+            </button>
           )}
         </div>
 
@@ -69,7 +98,10 @@ const Sidebar = () => {
             <NavLink
               key={item.name}
               to={item.path}
-              onClick={(e) => item.path === '#' && e.preventDefault()}
+              onClick={(e) => {
+                if (item.path === '#') e.preventDefault();
+                setIsMobileOpen(false); // Close on navigation for mobile
+              }}
               className={({ isActive }) => cn(
                 "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer relative",
                 isActive && item.path !== '#' 
@@ -154,6 +186,7 @@ const Sidebar = () => {
         </button>
       </div>
     </motion.aside>
+    </>
   );
 };
 

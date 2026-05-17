@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { Bell, Search, User, MessageSquarePlus, Users, X, Check, Mail, CheckCircle2, Target } from 'lucide-react';
+import { Bell, Search, User, MessageSquarePlus, Users, X, Check, Mail, CheckCircle2, Target, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { teamService } from '../services/teamService';
 import authService from '../services/authService';
@@ -23,6 +23,7 @@ const Layout = () => {
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   const notificationRef = useRef(null);
   const searchRef = useRef(null);
@@ -142,13 +143,21 @@ const Layout = () => {
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[100px] pointer-events-none animate-pulse-slow" />
       <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] rounded-full bg-indigo-600/5 blur-[100px] pointer-events-none" />
 
-      <Sidebar />
+      <Sidebar isMobileOpen={isMobileSidebarOpen} setIsMobileOpen={setIsMobileSidebarOpen} />
 
       <div className="flex flex-col flex-1 relative overflow-hidden">
         {/* Top Bar */}
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 z-20 glass-light sticky top-0">
-          <div className="relative" ref={searchRef}>
-            <div className="flex items-center bg-white/5 border border-white/5 px-4 py-2 rounded-xl w-80 focus-within:border-primary/40 focus-within:bg-white/10 transition-all group">
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 z-20 glass-light sticky top-0">
+          <div className="flex items-center">
+            {/* Mobile Menu Toggle */}
+            <button 
+              className="md:hidden mr-3 text-muted-foreground hover:text-foreground bg-white/5 p-2 rounded-xl border border-white/5 transition-colors"
+              onClick={() => setIsMobileSidebarOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <div className="relative" ref={searchRef}>
+              <div className="flex items-center bg-white/5 border border-white/5 px-3 md:px-4 py-2 rounded-xl w-48 sm:w-64 md:w-80 focus-within:border-primary/40 focus-within:bg-white/10 transition-all group">
               <Search size={16} className="text-muted-foreground group-focus-within:text-primary transition-colors" />
               <input 
                 type="text" 
@@ -170,7 +179,7 @@ const Layout = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 mt-2 w-[400px] bg-[#0d0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 p-2"
+                  className="absolute top-full left-0 mt-2 w-[300px] sm:w-[400px] bg-[#0d0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 p-2"
                 >
                   <div className="max-h-[400px] overflow-y-auto scrollbar-thin">
                     {/* Tasks */}
@@ -240,8 +249,9 @@ const Layout = () => {
               )}
             </AnimatePresence>
           </div>
+          </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 sm:gap-5">
             <button className="relative bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 p-2.5 rounded-xl transition-all text-muted-foreground hover:text-white">
               <MessageSquarePlus size={18} />
             </button>
@@ -367,7 +377,7 @@ const Layout = () => {
         </header>
 
         {/* Main Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-8 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-4 md:p-8 scrollbar-thin">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

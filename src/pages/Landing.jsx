@@ -140,9 +140,9 @@ const Landing = () => {
                   </div>
                 </div>
                 {/* Mock interior representation using divs to show aesthetics */}
-                <div className="flex-1 bg-zinc-950/95 flex p-4 gap-4 text-left">
+                <div className="flex-1 bg-zinc-950/95 flex p-2 sm:p-4 gap-2 sm:gap-4 text-left">
                   {/* Sidebar representation */}
-                  <div className="w-1/4 rounded-lg bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
+                  <div className="hidden sm:flex w-1/4 rounded-lg bg-white/5 border border-white/5 p-3 flex-col gap-3">
                     <div className="h-6 bg-white/10 rounded-md w-2/3" />
                     <div className="space-y-2 mt-4">
                       <div className="h-8 bg-primary/20 rounded-md border border-primary/30 w-full" />
@@ -152,17 +152,17 @@ const Landing = () => {
                   </div>
                   {/* Dashboard representation */}
                   <div className="flex-1 flex flex-col gap-4">
-                    <div className="flex gap-4">
-                      <div className="flex-1 h-24 bg-white/5 rounded-xl border border-white/5 p-3">
-                        <div className="w-1/3 h-4 bg-white/10 rounded-sm" />
-                        <div className="w-1/2 h-8 bg-white/20 rounded-md mt-4" />
+                    <div className="flex gap-2 sm:gap-4">
+                      <div className="flex-1 h-24 bg-white/5 rounded-xl border border-white/5 p-2 sm:p-3">
+                        <div className="w-1/3 h-3 sm:h-4 bg-white/10 rounded-sm" />
+                        <div className="w-1/2 h-6 sm:h-8 bg-white/20 rounded-md mt-4" />
                       </div>
-                      <div className="flex-1 h-24 bg-white/5 rounded-xl border border-white/5 p-3">
-                        <div className="w-1/3 h-4 bg-white/10 rounded-sm" />
-                        <div className="w-1/2 h-8 bg-white/20 rounded-md mt-4" />
+                      <div className="flex-1 h-24 bg-white/5 rounded-xl border border-white/5 p-2 sm:p-3">
+                        <div className="w-1/3 h-3 sm:h-4 bg-white/10 rounded-sm" />
+                        <div className="w-1/2 h-6 sm:h-8 bg-white/20 rounded-md mt-4" />
                       </div>
                     </div>
-                    <div className="flex-1 bg-white/5 rounded-xl border border-white/5 p-4 flex gap-3">
+                    <div className="flex-1 bg-white/5 rounded-xl border border-white/5 p-2 sm:p-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <div className="flex-1 bg-white/5 rounded-lg border border-white/5" />
                       <div className="flex-1 bg-white/5 rounded-lg border border-white/5" />
                       <div className="flex-1 bg-white/5 rounded-lg border border-white/5" />

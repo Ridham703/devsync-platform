@@ -326,7 +326,7 @@ const Teams = () => {
               <h3 className="text-2xl font-bold mb-8">Team Members</h3>
               <div className="space-y-4">
                 {selectedTeam?.members.map((m) => (
-                  <div key={m.user._id} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:bg-white/10 transition-all">
+                  <div key={m.user._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:bg-white/10 transition-all gap-4">
                     <div className="flex items-center gap-3">
                       <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/10 border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
                         {m.user.avatar ? <img src={m.user.avatar} className="w-full h-full object-cover" /> : <span className="text-sm font-bold text-primary">{m.user.username.charAt(0)}</span>}
@@ -339,7 +339,7 @@ const Teams = () => {
                         <p className="text-[10px] text-muted-foreground font-light">{m.user.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                       <span className={cn(
                         "text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border",
                         m.role === 'admin' ? "bg-primary/10 border-primary/20 text-primary" : "bg-white/5 border-white/10 text-muted-foreground"

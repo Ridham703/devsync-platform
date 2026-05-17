@@ -13,7 +13,9 @@ import {
   ChevronDown,
   Sparkles,
   MessageSquare,
-  Trash2
+  Trash2,
+  Menu,
+  ChevronLeft
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import socket from '../services/socketService';
@@ -29,6 +31,12 @@ const Chat = () => {
   const [activeChannel, setActiveChannel] = useState(null); // Will store team object
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
+  // When a channel is selected, hide mobile sidebar
+  useEffect(() => {
+    setShowMobileSidebar(false);
+  }, [activeChannel]);
 
   const [dms] = useState([
     { id: 101, name: 'Sarah Connor', role: 'Lead Dev', online: true },
@@ -255,7 +263,10 @@ const Chat = () => {
   return (
     <div className="h-[calc(100vh-12rem)] flex border border-border rounded-2xl bg-card/50 backdrop-blur-xl overflow-hidden relative shadow-2xl">
       {/* Channels List Sub-Sidebar */}
-      <div className="w-64 border-r border-border flex flex-col bg-card/30 flex-shrink-0 hidden md:flex">
+      <div className={cn(
+        "w-full md:w-64 border-r border-border flex-col bg-card/30 flex-shrink-0",
+        showMobileSidebar ? "flex" : "hidden md:flex"
+      )}>
         {/* Workspace Header */}
         <div className="h-14 border-b border-border flex items-center justify-between px-4 hover:bg-accent cursor-pointer transition-colors">
           <div className="flex items-center gap-2">
@@ -363,13 +374,22 @@ const Chat = () => {
       </div>
 
       {/* Chat Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-zinc-900/10">
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0 h-full relative bg-zinc-900/10",
+        showMobileSidebar ? "hidden md:flex" : "flex"
+      )}>
         {/* Top Bar */}
-        <div className="h-14 border-b border-border px-6 flex items-center justify-between bg-background/30">
-          <div className="flex items-center gap-3">
+        <div className="h-14 border-b border-border px-4 md:px-6 flex items-center justify-between bg-background/30">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button 
+              className="md:hidden p-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowMobileSidebar(true)}
+            >
+              <Menu size={20} />
+            </button>
             <div className="flex items-center gap-1.5 text-foreground font-bold text-base">
-              <Hash size={18} className="text-primary" />
-              <span>{activeChannel?.name ? activeChannel.name.toLowerCase().replace(/\s+/g, '-') : 'Select Team'}</span>
+              <Hash size={18} className="text-primary hidden sm:block" />
+              <span className="truncate max-w-[120px] sm:max-w-[200px]">{activeChannel?.name ? activeChannel.name.toLowerCase().replace(/\s+/g, '-') : 'Select Team'}</span>
             </div>
             <div className="hidden sm:flex h-4 w-px bg-border mx-1" />
             <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
