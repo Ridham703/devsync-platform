@@ -233,35 +233,35 @@ const Kanban = () => {
     
     const currentUserId = currentUser?.id || currentUser?._id;
 
-    // Special check for moving to DONE status: Only team admins or owners can transition tasks to DONE
-    if (targetStatus === 'DONE') {
-      if (userRole === 'admin') {
-        // App-wide super admins are permitted
-      } else {
-        let teamId = task.teamId?._id || task.teamId;
-        if (!teamId && task.projectId) {
-          const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
-          if (project) {
-            teamId = project.team?._id || project.team;
-          }
-        }
-
-        if (teamId) {
-          const team = teams.find(t => t._id === teamId);
-          if (team) {
-            const isOwner = (team.owner?._id || team.owner) === currentUserId;
-            const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
-            const isAdmin = member && member.role === 'admin';
-
-            if (!isOwner && !isAdmin) {
-              return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
-            }
-          } else {
-            return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
-          }
-        }
+    // Check if user is team admin or team owner
+    let teamId = task.teamId?._id || task.teamId;
+    if (!teamId && task.projectId) {
+      const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
+      if (project) {
+        teamId = project.team?._id || project.team;
       }
     }
+
+    let isTeamAdminOrOwner = false;
+    if (teamId) {
+      const team = teams.find(t => t._id === teamId);
+      if (team) {
+        const isOwner = (team.owner?._id || team.owner) === currentUserId;
+        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
+        const isAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isAdmin;
+      }
+    }
+
+    // Special check for moving to DONE status: Only team admins or owners can transition tasks to DONE (if task belongs to a team)
+    if (targetStatus === 'DONE' && teamId) {
+      if (userRole !== 'admin' && !isTeamAdminOrOwner) {
+        return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
+      }
+    }
+
+    // If user is a team admin or team owner, they have full management access to tasks in their team!
+    if (isTeamAdminOrOwner) return { allowed: true };
 
     if (userRole === 'admin' || userRole === 'manager') return { allowed: true };
     

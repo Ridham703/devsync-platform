@@ -21,31 +21,37 @@ export const canMoveTask = async (req, res, next) => {
     const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    // ONLY team admin/owner can move a task to DONE
-    if (newStatus === 'DONE') {
-      let teamId = task.teamId;
-      if (!teamId && task.projectId) {
-        const Project = (await import('../models/Project.js')).default;
-        const project = await Project.findById(task.projectId);
-        if (project) {
-          teamId = project.team;
-        }
-      }
-
-      if (teamId) {
-        const Team = (await import('../models/Team.js')).default;
-        const team = await Team.findById(teamId);
-        if (team) {
-          const isOwner = team.owner.toString() === user._id.toString();
-          const member = team.members.find(m => m.user.toString() === user._id.toString());
-          const isAdmin = member && member.role === 'admin';
-
-          if (!isOwner && !isAdmin) {
-            return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
-          }
-        }
+    // Determine if user is a team admin or team owner
+    let isTeamAdminOrOwner = false;
+    let teamId = task.teamId;
+    if (!teamId && task.projectId) {
+      const Project = (await import('../models/Project.js')).default;
+      const project = await Project.findById(task.projectId);
+      if (project) {
+        teamId = project.team;
       }
     }
+
+    if (teamId) {
+      const Team = (await import('../models/Team.js')).default;
+      const team = await Team.findById(teamId);
+      if (team) {
+        const isOwner = team.owner.toString() === user._id.toString();
+        const member = team.members.find(m => m.user.toString() === user._id.toString());
+        const isAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isAdmin;
+      }
+    }
+
+    // ONLY team admin/owner can move a task to DONE (if it belongs to a team)
+    if (newStatus === 'DONE' && teamId) {
+      if (role !== 'admin' && !isTeamAdminOrOwner) {
+        return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
+      }
+    }
+
+    // If user is team admin or team owner, they have full movement rights for tasks in their team!
+    if (isTeamAdminOrOwner) return next();
 
     // 3. MANAGER: Can move team tasks
     if (role === 'manager') return next();
