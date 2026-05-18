@@ -3,7 +3,6 @@ import Task from '../models/Task.js';
 export const canMoveTask = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status: newStatus } = req.body;
     const user = req.user;
 
     const role = user.role?.toLowerCase() || 'visitor';
@@ -59,13 +58,6 @@ export const canMoveTask = async (req, res, next) => {
     // "Ensure Admin, Manager, and assigned members can move tasks. Prevent non-assigned members from moving."
     if (!isManager && !isAssignee) {
       return res.status(403).json({ message: 'Only Admin, Manager, or the assigned member can move this task' });
-    }
-
-    // "Only the assigned member can move or update their assigned task... but only team admin/owner, admin, or manager can transition tasks to DONE"
-    if (newStatus === 'DONE' && teamId) {
-      if (!isManager) {
-        return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
-      }
     }
 
     return next();

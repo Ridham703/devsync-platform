@@ -272,32 +272,6 @@ const Kanban = () => {
       return { allowed: false, message: 'No permission to move this task. Only Admin, Manager, and assigned members can move tasks.' };
     }
 
-    // Special check for moving to DONE status: Only team admins/owners or app admins/managers can transition tasks to DONE (if task belongs to a team)
-    let teamId = task.teamId?._id || task.teamId;
-    if (!teamId && task.projectId) {
-      const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
-      if (project) {
-        teamId = project.team?._id || project.team;
-      }
-    }
-
-    let isTeamAdminOrOwner = false;
-    if (teamId) {
-      const team = teams.find(t => t._id === teamId);
-      if (team) {
-        const isOwner = (team.owner?._id || team.owner)?.toString() === currentUserId?.toString();
-        const member = team.members?.find(m => (m.user?._id || m.user)?.toString() === currentUserId?.toString());
-        const isTeamAdmin = member && member.role === 'admin';
-        isTeamAdminOrOwner = isOwner || isTeamAdmin;
-      }
-    }
-
-    if (targetStatus === 'DONE' && teamId) {
-      if (!isAdmin && !isManager && !isTeamAdminOrOwner) {
-        return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
-      }
-    }
-
     return { allowed: true };
   };
 
