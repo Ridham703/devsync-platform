@@ -6,12 +6,13 @@ export const canMoveTask = async (req, res, next) => {
     const { status: newStatus } = req.body;
     const user = req.user;
 
-    let role = user.role?.toLowerCase() || 'assignment_man';
-    if (role === 'developer' || role === 'member') role = 'assignment_man';
-    if (role === 'guest' || role === 'viewer') role = 'visitor';
+    const role = user.role?.toLowerCase() || 'visitor';
+
+    const isAdmin = role === 'admin';
+    const isManager = role === 'manager';
 
     // 1. App-wide super admin: Full unrestricted access
-    if (role === 'admin') return next();
+    if (isAdmin) return next();
 
     // 2. Visitor: Strict read-only
     if (role === 'visitor') {
@@ -38,8 +39,8 @@ export const canMoveTask = async (req, res, next) => {
       if (team) {
         const isOwner = team.owner.toString() === user._id.toString();
         const member = team.members.find(m => m.user.toString() === user._id.toString());
-        const isAdmin = member && member.role === 'admin';
-        isTeamAdminOrOwner = isOwner || isAdmin;
+        const isTeamAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isTeamAdmin;
       }
     }
 
@@ -55,14 +56,16 @@ export const canMoveTask = async (req, res, next) => {
       isAssignee = task.assignedTo?.toString() === currentUserId;
     }
 
-    // "Non-assigned users cannot drag, move, or change task status."
-    if (!isAssignee) {
-      return res.status(403).json({ message: 'Only the assigned member or team admins can move this task' });
+    // "Ensure Admin, Manager, and assigned members can move tasks. Prevent non-assigned members from moving."
+    if (!isManager && !isAssignee) {
+      return res.status(403).json({ message: 'Only Admin, Manager, or the assigned member can move this task' });
     }
 
-    // "Only the assigned member can move or update their assigned task... but only team admin can transition tasks to DONE"
+    // "Only the assigned member can move or update their assigned task... but only team admin/owner, admin, or manager can transition tasks to DONE"
     if (newStatus === 'DONE' && teamId) {
-      return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
+      if (!isManager) {
+        return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
+      }
     }
 
     return next();
@@ -76,12 +79,13 @@ export const canEditTask = async (req, res, next) => {
     const { id } = req.params;
     const user = req.user;
 
-    let role = user.role?.toLowerCase() || 'assignment_man';
-    if (role === 'developer' || role === 'member') role = 'assignment_man';
-    if (role === 'guest' || role === 'viewer') role = 'visitor';
+    const role = user.role?.toLowerCase() || 'visitor';
 
-    // 1. App-wide super admin: Full access
-    if (role === 'admin') return next();
+    const isAdmin = role === 'admin';
+    const isManager = role === 'manager';
+
+    // 1. App-wide super admin / manager: Full access
+    if (isAdmin || isManager) return next();
 
     // 2. Visitor: Strict read-only
     if (role === 'visitor') {
@@ -108,8 +112,8 @@ export const canEditTask = async (req, res, next) => {
       if (team) {
         const isOwner = team.owner.toString() === user._id.toString();
         const member = team.members.find(m => m.user.toString() === user._id.toString());
-        const isAdmin = member && member.role === 'admin';
-        isTeamAdminOrOwner = isOwner || isAdmin;
+        const isTeamAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isTeamAdmin;
       }
     }
 
@@ -139,9 +143,7 @@ export const canDeleteTask = async (req, res, next) => {
     const { id } = req.params;
     const user = req.user;
 
-    let role = user.role?.toLowerCase() || 'assignment_man';
-    if (role === 'developer' || role === 'member') role = 'assignment_man';
-    if (role === 'guest' || role === 'viewer') role = 'visitor';
+    const role = user.role?.toLowerCase() || 'visitor';
 
     // 1. App-wide super admin: Full access
     if (role === 'admin') return next();
@@ -166,8 +168,8 @@ export const canDeleteTask = async (req, res, next) => {
       if (team) {
         const isOwner = team.owner.toString() === user._id.toString();
         const member = team.members.find(m => m.user.toString() === user._id.toString());
-        const isAdmin = member && member.role === 'admin';
-        isTeamAdminOrOwner = isOwner || isAdmin;
+        const isTeamAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isTeamAdmin;
       }
     }
 

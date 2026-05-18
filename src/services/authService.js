@@ -29,6 +29,19 @@ export const getCurrentUser = () => {
   return user ? JSON.parse(user) : null;
 };
 
+export const getProfile = async () => {
+  const response = await api.get('/users/me');
+  if (response.data) {
+    const storedUser = localStorage.getItem('devsync_user');
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      const updatedUser = { ...parsed, ...response.data };
+      localStorage.setItem('devsync_user', JSON.stringify(updatedUser));
+    }
+  }
+  return response.data;
+};
+
 export const sendOtp = async (email, type) => {
   const response = await api.post('/auth/send-otp', { email, type });
   return response.data;
@@ -44,6 +57,7 @@ const authService = {
   loginUser,
   logoutUser,
   getCurrentUser,
+  getProfile,
   sendOtp,
   resetPassword
 };

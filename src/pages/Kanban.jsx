@@ -153,6 +153,14 @@ const Kanban = () => {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
+
+      // Dynamically fetch and sync latest user profile from the database to stay in sync
+      try {
+        await authService.getProfile();
+      } catch (err) {
+        console.error('Failed to sync profile role on load:', err);
+      }
+
       const [tasksData, projectsData, teamsData] = await Promise.all([
         taskService.getAllTasks(),
         projectService.getProjects(),
@@ -229,11 +237,42 @@ const Kanban = () => {
   // --- Logic & Actions ---
 
   const checkMovementPermission = (task, targetStatus = null) => {
-    if (userRole === 'visitor') return { allowed: false, message: 'Visitors have read-only access' };
-    
     const currentUserId = currentUser?.id || currentUser?._id;
+    const role = currentUser?.role?.toLowerCase() || 'visitor';
 
-    // Check if user is team admin or team owner
+    const isAdmin = role === 'admin';
+    const isManager = role === 'manager';
+
+    // Normalize task assignment check safely to strings
+    const assignedIds = Array.isArray(task.assignedTo) 
+      ? task.assignedTo.map(a => (a._id || a)?.toString()) 
+      : [ (task.assignedTo?._id || task.assignedTo)?.toString() ];
+    
+    const isAssigned = assignedIds.includes(currentUserId?.toString());
+
+    // Debugging logs as requested
+    console.log(`[PERMISSION-DEBUG] checkMovementPermission:`, {
+      taskId: task._id || task.id,
+      taskTitle: task.title,
+      currentUserRole: role,
+      currentUserId,
+      isAdmin,
+      isManager,
+      isAssigned,
+      assignedIds,
+      targetStatus
+    });
+
+    if (role === 'visitor') {
+      return { allowed: false, message: 'Visitors have read-only access' };
+    }
+
+    // Ensure Admin, Manager, and assigned members can move tasks. Prevent non-assigned members from moving.
+    if (!isAdmin && !isManager && !isAssigned) {
+      return { allowed: false, message: 'No permission to move this task. Only Admin, Manager, and assigned members can move tasks.' };
+    }
+
+    // Special check for moving to DONE status: Only team admins/owners or app admins/managers can transition tasks to DONE (if task belongs to a team)
     let teamId = task.teamId?._id || task.teamId;
     if (!teamId && task.projectId) {
       const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
@@ -246,35 +285,17 @@ const Kanban = () => {
     if (teamId) {
       const team = teams.find(t => t._id === teamId);
       if (team) {
-        const isOwner = (team.owner?._id || team.owner) === currentUserId;
-        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
-        const isAdmin = member && member.role === 'admin';
-        isTeamAdminOrOwner = isOwner || isAdmin;
+        const isOwner = (team.owner?._id || team.owner)?.toString() === currentUserId?.toString();
+        const member = team.members?.find(m => (m.user?._id || m.user)?.toString() === currentUserId?.toString());
+        const isTeamAdmin = member && member.role === 'admin';
+        isTeamAdminOrOwner = isOwner || isTeamAdmin;
       }
     }
 
-    // Check if user is the assigned member
-    const assignedIds = Array.isArray(task.assignedTo) 
-      ? task.assignedTo.map(a => a._id || a) 
-      : [task.assignedTo?._id || task.assignedTo];
-    
-    const isAssignee = assignedIds.includes(currentUserId);
-
-    // Special check for moving to DONE status: Only team admins or owners can transition tasks to DONE (if task belongs to a team)
     if (targetStatus === 'DONE' && teamId) {
-      if (userRole !== 'admin' && !isTeamAdminOrOwner) {
+      if (!isAdmin && !isManager && !isTeamAdminOrOwner) {
         return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
       }
-    }
-
-    // If user is a team admin or team owner, they have full management access to tasks in their team!
-    if (isTeamAdminOrOwner) return { allowed: true };
-
-    if (userRole === 'admin') return { allowed: true };
-    
-    // Non-assigned users cannot drag, move, or change task status
-    if (!isAssignee) {
-      return { allowed: false, message: 'Only the assigned member can move or update this task.' };
     }
 
     return { allowed: true };
@@ -282,9 +303,13 @@ const Kanban = () => {
 
   const canUserEditTask = (task) => {
     if (!task) return false;
-    if (userRole === 'admin') return true;
-
     const currentUserId = currentUser?.id || currentUser?._id;
+    const role = currentUser?.role?.toLowerCase() || 'visitor';
+
+    const isAdmin = role === 'admin';
+    const isManager = role === 'manager';
+
+    if (isAdmin || isManager) return true;
 
     // Check team admin/owner
     let teamId = task.teamId?._id || task.teamId;
@@ -298,26 +323,27 @@ const Kanban = () => {
     if (teamId) {
       const team = teams.find(t => t._id === teamId);
       if (team) {
-        const isOwner = (team.owner?._id || team.owner) === currentUserId;
-        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
-        const isAdmin = member && member.role === 'admin';
-        if (isOwner || isAdmin) return true;
+        const isOwner = (team.owner?._id || team.owner)?.toString() === currentUserId?.toString();
+        const member = team.members?.find(m => (m.user?._id || m.user)?.toString() === currentUserId?.toString());
+        const isTeamAdmin = member && member.role === 'admin';
+        if (isOwner || isTeamAdmin) return true;
       }
     }
 
     // Check assigned member
     const assignedIds = Array.isArray(task.assignedTo) 
-      ? task.assignedTo.map(a => a._id || a) 
-      : [task.assignedTo?._id || task.assignedTo];
+      ? task.assignedTo.map(a => (a._id || a)?.toString()) 
+      : [ (task.assignedTo?._id || task.assignedTo)?.toString() ];
     
-    return assignedIds.includes(currentUserId);
+    return assignedIds.includes(currentUserId?.toString());
   };
 
   const isUserTeamAdmin = (task) => {
     if (!task) return false;
-    if (userRole === 'admin') return true;
-
     const currentUserId = currentUser?.id || currentUser?._id;
+    const role = currentUser?.role?.toLowerCase() || 'visitor';
+
+    if (role === 'admin') return true;
 
     // Check team admin/owner
     let teamId = task.teamId?._id || task.teamId;
@@ -331,10 +357,10 @@ const Kanban = () => {
     if (teamId) {
       const team = teams.find(t => t._id === teamId);
       if (team) {
-        const isOwner = (team.owner?._id || team.owner) === currentUserId;
-        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
-        const isAdmin = member && member.role === 'admin';
-        return isOwner || isAdmin;
+        const isOwner = (team.owner?._id || team.owner)?.toString() === currentUserId?.toString();
+        const member = team.members?.find(m => (m.user?._id || m.user)?.toString() === currentUserId?.toString());
+        const isTeamAdmin = member && member.role === 'admin';
+        return isOwner || isTeamAdmin;
       }
     }
 
