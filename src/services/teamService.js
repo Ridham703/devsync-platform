@@ -1,107 +1,79 @@
-const API_URL = 'http://localhost:5000/api/teams';
-
-const getAuthHeaders = () => {
-  const user = JSON.parse(localStorage.getItem('devsync_user'));
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${user?.token}`
-  };
-};
+import api from './api';
 
 export const teamService = {
   getTeams: async () => {
-    const response = await fetch(`${API_URL}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch teams');
-    return response.json();
+    const response = await api.get('/teams');
+    return response.data;
   },
 
   getInvitations: async () => {
-    const response = await fetch(`${API_URL}/invitations`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch invitations');
-    return response.json();
+    const response = await api.get('/teams/invitations');
+    return response.data;
   },
 
   getTeam: async (id) => {
-    const response = await fetch(`${API_URL}/${id}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch team');
-    return response.json();
+    const response = await api.get(`/teams/${id}`);
+    return response.data;
   },
 
   createTeam: async (teamData) => {
-    const response = await fetch(`${API_URL}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(teamData)
-    });
-    if (!response.ok) throw new Error('Failed to create team');
-    return response.json();
+    const response = await api.post('/teams', teamData);
+    return response.data;
   },
 
   inviteMember: async (teamId, email) => {
-    const response = await fetch(`${API_URL}/${teamId}/invite`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ email })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to invite member');
-    return data;
+    try {
+      const response = await api.post(`/teams/${teamId}/invite`, { email });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to invite member');
+    }
   },
 
   joinTeam: async (teamId) => {
-    const response = await fetch(`${API_URL}/${teamId}/join`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to join team');
-    return data;
+    try {
+      const response = await api.post(`/teams/${teamId}/join`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to join team');
+    }
   },
 
   updateMemberRole: async (teamId, userId, role) => {
-    const response = await fetch(`${API_URL}/${teamId}/members/${userId}/role`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ role })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to update role');
-    return data;
+    try {
+      const response = await api.patch(`/teams/${teamId}/members/${userId}/role`, { role });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update role');
+    }
   },
 
   deleteTeam: async (teamId) => {
-    const response = await fetch(`${API_URL}/${teamId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to delete team');
-    return data;
+    try {
+      const response = await api.delete(`/teams/${teamId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete team');
+    }
   },
 
   removeMember: async (teamId, userId) => {
-    const response = await fetch(`${API_URL}/${teamId}/members/${userId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to remove member');
-    return data;
+    try {
+      const response = await api.delete(`/teams/${teamId}/members/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to remove member');
+    }
   },
 
   declineInvitation: async (teamId) => {
-    const response = await fetch(`${API_URL}/${teamId}/decline`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to decline invitation');
-    return data;
+    try {
+      const response = await api.post(`/teams/${teamId}/decline`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to decline invitation');
+    }
   }
 };
+
+export default teamService;
