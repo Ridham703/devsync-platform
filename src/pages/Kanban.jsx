@@ -253,6 +253,13 @@ const Kanban = () => {
       }
     }
 
+    // Check if user is the assigned member
+    const assignedIds = Array.isArray(task.assignedTo) 
+      ? task.assignedTo.map(a => a._id || a) 
+      : [task.assignedTo?._id || task.assignedTo];
+    
+    const isAssignee = assignedIds.includes(currentUserId);
+
     // Special check for moving to DONE status: Only team admins or owners can transition tasks to DONE (if task belongs to a team)
     if (targetStatus === 'DONE' && teamId) {
       if (userRole !== 'admin' && !isTeamAdminOrOwner) {
@@ -263,22 +270,75 @@ const Kanban = () => {
     // If user is a team admin or team owner, they have full management access to tasks in their team!
     if (isTeamAdminOrOwner) return { allowed: true };
 
-    if (userRole === 'admin' || userRole === 'manager') return { allowed: true };
+    if (userRole === 'admin') return { allowed: true };
     
-    if (userRole === 'assignment_man') {
-      const assignedIds = Array.isArray(task.assignedTo) 
-        ? task.assignedTo.map(a => a._id || a) 
-        : [task.assignedTo?._id || task.assignedTo];
-      
-      const isAssignee = assignedIds.includes(currentUserId);
-      const isCreator = (task.createdBy?._id || task.createdBy) === currentUserId;
-      
-      if (!isAssignee && !isCreator) {
-        return { allowed: false, message: 'You can only move tasks assigned to you or created by you.' };
-      }
+    // Non-assigned users cannot drag, move, or change task status
+    if (!isAssignee) {
+      return { allowed: false, message: 'Only the assigned member can move or update this task.' };
     }
 
     return { allowed: true };
+  };
+
+  const canUserEditTask = (task) => {
+    if (!task) return false;
+    if (userRole === 'admin') return true;
+
+    const currentUserId = currentUser?.id || currentUser?._id;
+
+    // Check team admin/owner
+    let teamId = task.teamId?._id || task.teamId;
+    if (!teamId && task.projectId) {
+      const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
+      if (project) {
+        teamId = project.team?._id || project.team;
+      }
+    }
+
+    if (teamId) {
+      const team = teams.find(t => t._id === teamId);
+      if (team) {
+        const isOwner = (team.owner?._id || team.owner) === currentUserId;
+        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
+        const isAdmin = member && member.role === 'admin';
+        if (isOwner || isAdmin) return true;
+      }
+    }
+
+    // Check assigned member
+    const assignedIds = Array.isArray(task.assignedTo) 
+      ? task.assignedTo.map(a => a._id || a) 
+      : [task.assignedTo?._id || task.assignedTo];
+    
+    return assignedIds.includes(currentUserId);
+  };
+
+  const isUserTeamAdmin = (task) => {
+    if (!task) return false;
+    if (userRole === 'admin') return true;
+
+    const currentUserId = currentUser?.id || currentUser?._id;
+
+    // Check team admin/owner
+    let teamId = task.teamId?._id || task.teamId;
+    if (!teamId && task.projectId) {
+      const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
+      if (project) {
+        teamId = project.team?._id || project.team;
+      }
+    }
+
+    if (teamId) {
+      const team = teams.find(t => t._id === teamId);
+      if (team) {
+        const isOwner = (team.owner?._id || team.owner) === currentUserId;
+        const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
+        const isAdmin = member && member.role === 'admin';
+        return isOwner || isAdmin;
+      }
+    }
+
+    return false;
   };
 
   const moveTask = async (taskId, newStatus) => {
@@ -718,10 +778,10 @@ const Kanban = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {selectedTask && !isEditing && userRole !== 'visitor' && (
+                  {selectedTask && !isEditing && canUserEditTask(selectedTask) && (
                     <button onClick={() => setIsEditing(true)} className="p-2.5 hover:bg-primary/10 rounded-xl text-primary transition-all shadow-sm"><Edit size={20} /></button>
                   )}
-                  {selectedTask && (userRole === 'admin' || (selectedTask.createdBy?._id || selectedTask.createdBy) === currentUser?.id) && (
+                  {selectedTask && (userRole === 'admin' || isUserTeamAdmin(selectedTask)) && (
                     <button onClick={() => handleDeleteTask(getTaskId(selectedTask))} className="p-2.5 hover:bg-red-500/10 rounded-xl text-red-500 transition-all shadow-sm"><Trash2 size={20} /></button>
                   )}
                   <button onClick={() => setIsModalOpen(false)} className="p-2.5 hover:bg-accent rounded-xl transition-all"><X size={20} /></button>

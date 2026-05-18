@@ -36,6 +36,12 @@ export const createTask = async (req, res) => {
 
     const savedTask = await newTask.save();
 
+    // Broadcast to other users in real time
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('task-created', savedTask);
+    }
+
     // Create Activity Log
     await ActivityLog.create({
       task: savedTask._id,
@@ -178,7 +184,7 @@ export const updateTask = async (req, res) => {
       if (req.body.status === 'DONE' && oldStatus !== 'DONE') {
         io.emit('task-completed', { taskId: updatedTask._id, userId: req.user._id });
       }
-      io.emit('task-updated', { taskId: updatedTask._id, targetStatus: updatedTask.status });
+      io.emit('task-updated', updatedTask);
     }
 
     res.json(updatedTask);
@@ -198,6 +204,13 @@ export const deleteTask = async (req, res) => {
     }
 
     await task.deleteOne();
+
+    // Broadcast deletion in real time
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('task-deleted', req.params.id);
+    }
+
     res.json({ message: 'Task removed successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server Error: Delete operation failed' });
