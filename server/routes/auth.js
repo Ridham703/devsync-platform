@@ -12,10 +12,10 @@ import {
 
 const router = express.Router();
 
-// Rate limiting for OTP requests to prevent abuse
+// Rate limiting for OTP requests to prevent abuse (relaxed in development)
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 OTP requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 5, // Limit each IP to 5 OTP requests per windowMs (1000 in dev)
   message: { message: 'Too many OTP requests, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,

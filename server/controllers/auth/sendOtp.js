@@ -44,7 +44,17 @@ export const sendOTP = async (req, res) => {
       });
     } catch (emailError) {
       console.error(`[EMAIL-ERROR] ${emailError.message}`);
-      // If email fails, we shouldn't tell the user it was sent
+      
+      // Development mode fallback to avoid blocking the developer
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`💡 [DEV-MODE] Email delivery failed, but proceeding anyway. The OTP code is: ${otp}`);
+        return res.json({ 
+          message: 'OTP sent! (Development Mode: Verification code printed to backend terminal)',
+          devMode: true 
+        });
+      }
+
+      // If email fails in production, tell the user it failed
       return res.status(500).json({ message: 'Failed to deliver OTP email. Please check your email address or try again later.' });
     }
 
