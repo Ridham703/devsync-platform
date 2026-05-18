@@ -21,6 +21,32 @@ export const canMoveTask = async (req, res, next) => {
     const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
+    // ONLY team admin/owner can move a task to DONE
+    if (newStatus === 'DONE') {
+      let teamId = task.teamId;
+      if (!teamId && task.projectId) {
+        const Project = (await import('../models/Project.js')).default;
+        const project = await Project.findById(task.projectId);
+        if (project) {
+          teamId = project.team;
+        }
+      }
+
+      if (teamId) {
+        const Team = (await import('../models/Team.js')).default;
+        const team = await Team.findById(teamId);
+        if (team) {
+          const isOwner = team.owner.toString() === user._id.toString();
+          const member = team.members.find(m => m.user.toString() === user._id.toString());
+          const isAdmin = member && member.role === 'admin';
+
+          if (!isOwner && !isAdmin) {
+            return res.status(403).json({ message: 'Only team admins or owners can move tasks to DONE' });
+          }
+        }
+      }
+    }
+
     // 3. MANAGER: Can move team tasks
     if (role === 'manager') return next();
 

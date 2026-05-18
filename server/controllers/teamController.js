@@ -38,7 +38,8 @@ export const getUserTeams = async (req, res) => {
 // @route   GET /api/teams/invitations
 export const getPendingInvitations = async (req, res) => {
   try {
-    const teams = await Team.find({ 'invitations.email': req.user.email })
+    const emailRegex = new RegExp(`^${req.user.email.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i');
+    const teams = await Team.find({ 'invitations.email': emailRegex })
       .populate('owner', 'username email avatar');
     res.json(teams);
   } catch (error) {
@@ -144,7 +145,7 @@ export const joinTeam = async (req, res) => {
     }
 
     // Check if user has an invitation
-    const inviteIndex = team.invitations.findIndex(inv => inv.email.toLowerCase().trim() === req.user.email.toLowerCase().trim());
+    const inviteIndex = team.invitations.findIndex(inv => inv.email && inv.email.toLowerCase().trim() === req.user.email.toLowerCase().trim());
     if (inviteIndex === -1) {
       return res.status(403).json({ message: 'No invitation found for this user' });
     }
@@ -180,7 +181,7 @@ export const declineInvitation = async (req, res) => {
     }
 
     // Remove invitation
-    team.invitations = team.invitations.filter(inv => inv.email.toLowerCase().trim() !== req.user.email.toLowerCase().trim());
+    team.invitations = team.invitations.filter(inv => inv.email && inv.email.toLowerCase().trim() !== req.user.email.toLowerCase().trim());
     await team.save();
 
     res.json({ message: 'Invitation declined successfully' });

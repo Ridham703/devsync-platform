@@ -229,11 +229,43 @@ const Kanban = () => {
   // --- Logic & Actions ---
 
   const checkMovementPermission = (task, targetStatus = null) => {
-    if (userRole === 'admin' || userRole === 'manager') return { allowed: true };
     if (userRole === 'visitor') return { allowed: false, message: 'Visitors have read-only access' };
     
+    const currentUserId = currentUser?.id || currentUser?._id;
+
+    // Special check for moving to DONE status: Only team admins or owners can transition tasks to DONE
+    if (targetStatus === 'DONE') {
+      if (userRole === 'admin') {
+        // App-wide super admins are permitted
+      } else {
+        let teamId = task.teamId?._id || task.teamId;
+        if (!teamId && task.projectId) {
+          const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
+          if (project) {
+            teamId = project.team?._id || project.team;
+          }
+        }
+
+        if (teamId) {
+          const team = teams.find(t => t._id === teamId);
+          if (team) {
+            const isOwner = (team.owner?._id || team.owner) === currentUserId;
+            const member = team.members?.find(m => (m.user?._id || m.user) === currentUserId);
+            const isAdmin = member && member.role === 'admin';
+
+            if (!isOwner && !isAdmin) {
+              return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
+            }
+          } else {
+            return { allowed: false, message: 'Only team admins or owners can move tasks to Done.' };
+          }
+        }
+      }
+    }
+
+    if (userRole === 'admin' || userRole === 'manager') return { allowed: true };
+    
     if (userRole === 'assignment_man') {
-      const currentUserId = currentUser?.id || currentUser?._id;
       const assignedIds = Array.isArray(task.assignedTo) 
         ? task.assignedTo.map(a => a._id || a) 
         : [task.assignedTo?._id || task.assignedTo];
@@ -243,10 +275,6 @@ const Kanban = () => {
       
       if (!isAssignee && !isCreator) {
         return { allowed: false, message: 'You can only move tasks assigned to you or created by you.' };
-      }
-
-      if (targetStatus === 'DONE') {
-        return { allowed: false, message: 'Only Managers or Admins can move tasks to Done.' };
       }
     }
 
