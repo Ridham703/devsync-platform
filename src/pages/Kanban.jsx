@@ -199,7 +199,12 @@ const Kanban = () => {
     });
 
     socket.on('task-created', (task) => {
-      setTasks(prev => [task, ...prev]);
+      setTasks(prev => {
+        if (prev.some(t => String(getTaskId(t)) === String(getTaskId(task)))) {
+          return prev;
+        }
+        return [task, ...prev];
+      });
     });
 
     socket.on('task-deleted', (taskId) => {
@@ -483,7 +488,12 @@ const Kanban = () => {
         setTasks(prev => prev.map(t => getTaskId(t) === taskId ? updated : t));
       } else {
         const created = await taskService.createNewTask(payload);
-        setTasks(prev => [created, ...prev]);
+        setTasks(prev => {
+          if (prev.some(t => String(getTaskId(t)) === String(getTaskId(created)))) {
+            return prev;
+          }
+          return [created, ...prev];
+        });
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -515,7 +525,12 @@ const Kanban = () => {
         tag: 'Task',
         priority: 'Medium'
       });
-      setTasks(prev => [created, ...prev]);
+      setTasks(prev => {
+        if (prev.some(t => String(getTaskId(t)) === String(getTaskId(created)))) {
+          return prev;
+        }
+        return [created, ...prev];
+      });
       setNewTitle('');
       setIsAdding(null);
     } catch (err) {
