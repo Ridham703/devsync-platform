@@ -341,6 +341,47 @@ const Kanban = () => {
     return false;
   };
 
+  const canUserDeleteTask = (task) => {
+    if (!task) return false;
+    const currentUserId = currentUser?.id || currentUser?._id;
+    const role = currentUser?.role?.toLowerCase() || 'visitor';
+
+    const isAdmin = role === 'admin';
+    const isManager = role === 'manager';
+
+    if (isAdmin || isManager) return true;
+
+    // Check if user is the creator
+    const creatorId = task.createdBy?._id || task.createdBy;
+    if (creatorId?.toString() === currentUserId?.toString()) return true;
+
+    // Check team admin/owner
+    let teamId = task.teamId?._id || task.teamId;
+    if (!teamId && task.projectId) {
+      const project = projects.find(p => p._id === (task.projectId?._id || task.projectId));
+      if (project) {
+        teamId = project.team?._id || project.team;
+      }
+    }
+
+    if (teamId) {
+      const team = teams.find(t => t._id === teamId);
+      if (team) {
+        const isOwner = (team.owner?._id || team.owner)?.toString() === currentUserId?.toString();
+        const member = team.members?.find(m => (m.user?._id || m.user)?.toString() === currentUserId?.toString());
+        const isTeamAdmin = member && member.role === 'admin';
+        if (isOwner || isTeamAdmin) return true;
+      }
+    }
+
+    // Check assigned member
+    const assignedIds = Array.isArray(task.assignedTo) 
+      ? task.assignedTo.map(a => (a._id || a)?.toString()) 
+      : [ (task.assignedTo?._id || task.assignedTo)?.toString() ];
+    
+    return assignedIds.includes(currentUserId?.toString());
+  };
+
   const moveTask = async (taskId, newStatus) => {
     const currentTask = tasks.find(t => getTaskId(t) === taskId);
     if (!currentTask || normalizeStatus(currentTask.status) === newStatus) return;
@@ -457,8 +498,11 @@ const Kanban = () => {
       await taskService.deleteTaskById(taskId);
       setTasks(prev => prev.filter(t => getTaskId(t) !== taskId));
       setIsModalOpen(false);
+      // Emit socket notification for real-time removal
+      socket.emit('task-deleted', taskId);
     } catch (err) {
       console.error('Delete task error:', err);
+      alert(err.response?.data?.message || 'Failed to delete task.');
     }
   };
 
@@ -781,7 +825,7 @@ const Kanban = () => {
                   {selectedTask && !isEditing && canUserEditTask(selectedTask) && (
                     <button onClick={() => setIsEditing(true)} className="p-2.5 hover:bg-primary/10 rounded-xl text-primary transition-all shadow-sm"><Edit size={20} /></button>
                   )}
-                  {selectedTask && (userRole === 'admin' || isUserTeamAdmin(selectedTask)) && (
+                  {selectedTask && canUserDeleteTask(selectedTask) && (
                     <button onClick={() => handleDeleteTask(getTaskId(selectedTask))} className="p-2.5 hover:bg-red-500/10 rounded-xl text-red-500 transition-all shadow-sm"><Trash2 size={20} /></button>
                   )}
                   <button onClick={() => setIsModalOpen(false)} className="p-2.5 hover:bg-accent rounded-xl transition-all"><X size={20} /></button>

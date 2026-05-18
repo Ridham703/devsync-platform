@@ -348,15 +348,6 @@ const Teams = () => {
                       </span>
                       {selectedTeam.owner._id === currentUser?._id && m.user._id !== currentUser?._id && (
                         <div className="flex items-center gap-1">
-                          <select 
-                            value={m.role} 
-                            onChange={(e) => handleUpdateRole(m.user._id, e.target.value)} 
-                            className="bg-[#0d0d12] border border-white/10 rounded-lg text-[10px] px-2 py-1 outline-none focus:border-primary/50"
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="member">Member</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
                           <button 
                             onClick={() => handleRemoveMember(m.user._id)}
                             className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
