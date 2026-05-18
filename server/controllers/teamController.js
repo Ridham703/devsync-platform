@@ -72,7 +72,10 @@ export const getTeamById = async (req, res) => {
 // @desc    Invite a member to team
 // @route   POST /api/teams/:id/invite
 export const inviteMember = async (req, res) => {
-  const { email } = req.body;
+  let { email } = req.body;
+  if (email) {
+    email = email.toLowerCase().trim();
+  }
 
   try {
     const team = await Team.findById(req.params.id);
@@ -98,7 +101,7 @@ export const inviteMember = async (req, res) => {
     }
 
     // Check if already invited
-    if (team.invitations.some(inv => inv.email === email)) {
+    if (team.invitations.some(inv => inv.email.toLowerCase().trim() === email)) {
       return res.status(400).json({ message: 'Invitation already sent' });
     }
 
@@ -141,7 +144,7 @@ export const joinTeam = async (req, res) => {
     }
 
     // Check if user has an invitation
-    const inviteIndex = team.invitations.findIndex(inv => inv.email === req.user.email);
+    const inviteIndex = team.invitations.findIndex(inv => inv.email.toLowerCase().trim() === req.user.email.toLowerCase().trim());
     if (inviteIndex === -1) {
       return res.status(403).json({ message: 'No invitation found for this user' });
     }
@@ -177,7 +180,7 @@ export const declineInvitation = async (req, res) => {
     }
 
     // Remove invitation
-    team.invitations = team.invitations.filter(inv => inv.email !== req.user.email);
+    team.invitations = team.invitations.filter(inv => inv.email.toLowerCase().trim() !== req.user.email.toLowerCase().trim());
     await team.save();
 
     res.json({ message: 'Invitation declined successfully' });

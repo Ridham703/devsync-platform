@@ -27,7 +27,11 @@ const teamSchema = new mongoose.Schema({
     }
   }],
   invitations: [{
-    email: String,
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true
+    },
     role: {
       type: String,
       enum: ['member', 'admin'],
