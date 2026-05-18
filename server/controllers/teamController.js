@@ -86,9 +86,14 @@ export const inviteMember = async (req, res) => {
       return res.status(403).json({ message: 'Only admins can invite members' });
     }
 
-    // Check if already a member
+    // Check if user is registered with the app
     const userToInvite = await User.findOne({ email });
-    if (userToInvite && team.members.some(m => m.user.toString() === userToInvite._id.toString())) {
+    if (!userToInvite) {
+      return res.status(404).json({ message: 'Email is not registered with this app' });
+    }
+
+    // Check if already a member
+    if (team.members.some(m => m.user.toString() === userToInvite._id.toString())) {
       return res.status(400).json({ message: 'User is already a member' });
     }
 
