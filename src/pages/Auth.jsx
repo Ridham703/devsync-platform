@@ -26,12 +26,7 @@ const Auth = () => {
   
   const navigate = useNavigate();
   
-  // Auto-redirect if already logged in
-  React.useEffect(() => {
-    if (authService.getCurrentUser()) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
+
 
   const clearForm = () => {
     setError('');
