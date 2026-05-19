@@ -22,6 +22,7 @@ import notificationRoutes from './routes/notifications.js';
 import analyticsRoutes from './routes/analytics.js';
 import searchRoutes from './routes/search.js';
 import commentRoutes from './routes/comments.js';
+import activityRoutes from './routes/activities.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -92,6 +93,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/activities', activityRoutes);
 
 // Fallback Health Check Route
 app.get('/', (req, res) => {
@@ -139,11 +141,17 @@ const io = new Server(server, {
 
 app.set('io', io);
 
+const onlineUsers = new Map(); // socket.id -> userId
+
 io.on('connection', (socket) => {
 
   // 💬 CHANNEL CHAT EVENTS
   socket.on('join-user', (userId) => {
     socket.join(userId);
+    if (userId && userId !== 'null' && userId !== 'undefined') {
+      onlineUsers.set(socket.id, userId.toString());
+      io.emit('users:online', Array.from(new Set(onlineUsers.values())));
+    }
   });
 
   socket.on('join-channel', (channelId) => {
@@ -184,6 +192,10 @@ io.on('connection', (socket) => {
 
   // DISCONNECTION
   socket.on('disconnect', () => {
+    if (onlineUsers.has(socket.id)) {
+      onlineUsers.delete(socket.id);
+      io.emit('users:online', Array.from(new Set(onlineUsers.values())));
+    }
   });
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, 
@@ -40,8 +40,9 @@ const Analytics = () => {
     teamMembers: 0,
     productivity: 0
   });
-  const [velocityData, setVelocityData] = useState([]);
+  const [chartData, setChartData] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [isDemo, setIsDemo] = useState(true);
   const [projects, setProjects] = useState([]);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -57,14 +58,15 @@ const Analytics = () => {
     if (isManual) setIsRefreshing(true);
     try {
       const [summary, velocity, topPerformers, allProjects] = await Promise.all([
-        analyticsService.getStatsSummary(projectFilter),
+        analyticsService.getStatsSummary(timeFilter, projectFilter),
         analyticsService.getVelocity(timeFilter, projectFilter),
-        analyticsService.getLeaderboard(),
+        analyticsService.getLeaderboard(timeFilter, projectFilter),
         projectService.getProjects()
       ]);
 
       setStats(summary);
-      setVelocityData(velocity);
+      setChartData(velocity.data || []);
+      setIsDemo(!velocity.hasRealData);
       setLeaderboard(topPerformers);
       setProjects(allProjects);
     } catch (err) {
@@ -75,18 +77,68 @@ const Analytics = () => {
     }
   }, [timeFilter, projectFilter]);
 
+  const fetchAnalyticsRef = useRef(fetchAnalytics);
+  const projectFilterRef = useRef(projectFilter);
+  
+  useEffect(() => {
+    fetchAnalyticsRef.current = fetchAnalytics;
+  }, [fetchAnalytics]);
+
+  useEffect(() => {
+    projectFilterRef.current = projectFilter;
+  }, [projectFilter]);
+
+  // Trigger immediate fetch when active timeframe or project filters toggle
   useEffect(() => {
     fetchAnalytics();
-    
-    // Realtime Updates
-    socket.on('task-completed', fetchAnalytics);
-    socket.on('task-updated', fetchAnalytics);
+  }, [timeFilter, projectFilter]);
+
+  // Stable Socket.IO registration bound exactly once on component mount
+  useEffect(() => {
+    const handleSocketUpdate = () => {
+      fetchAnalyticsRef.current();
+    };
+
+    const handleConditionalSocketUpdate = (data) => {
+      const currentProject = projectFilterRef.current;
+      if (!data || !data.projectId || data.projectId === currentProject || currentProject === 'all') {
+        fetchAnalyticsRef.current();
+      }
+    };
+
+    const handleWorkflowVelocityUpdate = (payload) => {
+      const currentProject = projectFilterRef.current;
+      if (!payload || !payload.projectId || payload.projectId === currentProject || currentProject === 'all') {
+        setIsDemo(false);
+        if (payload) {
+          if (Array.isArray(payload)) {
+            setChartData(payload);
+          } else if (payload.data) {
+            setChartData(payload.data);
+          }
+        }
+        handleSocketUpdate();
+      }
+    };
+
+    socket.on('task-completed', handleConditionalSocketUpdate);
+    socket.on('task-updated', handleConditionalSocketUpdate);
+    socket.on('analytics-updated', handleConditionalSocketUpdate);
+    socket.on('activity-updated', handleConditionalSocketUpdate);
+    socket.on('dashboard-analytics-updated', handleConditionalSocketUpdate);
+    socket.on('workflow-velocity-updated', handleWorkflowVelocityUpdate);
+    socket.on('team-joined', handleSocketUpdate);
     
     return () => {
-      socket.off('task-completed');
-      socket.off('task-updated');
+      socket.off('task-completed', handleConditionalSocketUpdate);
+      socket.off('task-updated', handleConditionalSocketUpdate);
+      socket.off('analytics-updated', handleConditionalSocketUpdate);
+      socket.off('activity-updated', handleConditionalSocketUpdate);
+      socket.off('dashboard-analytics-updated', handleConditionalSocketUpdate);
+      socket.off('workflow-velocity-updated', handleWorkflowVelocityUpdate);
+      socket.off('team-joined', handleSocketUpdate);
     };
-  }, [fetchAnalytics]);
+  }, []);
 
   const handleGetAIInsight = () => {
     setIsGeneratingAI(true);
@@ -194,6 +246,11 @@ const Analytics = () => {
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 <TrendingUp size={20} className="text-primary" />
                 Workflow Velocity
+                {isDemo && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-lg shadow-amber-500/5 animate-pulse uppercase tracking-wider">
+                    Demo Mode
+                  </span>
+                )}
               </h3>
               <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] mt-1 font-bold">Tasks completed per day</p>
             </div>
@@ -211,18 +268,18 @@ const Analytics = () => {
           </div>
 
           <div className="h-80 w-full flex items-center justify-center">
-            {velocityData.length > 0 ? (
+            {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={velocityData}>
+                <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={!isDemo ? "#10b981" : "#8b5cf6"} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={!isDemo ? "#10b981" : "#8b5cf6"} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
                   <XAxis 
-                    dataKey="date" 
+                    dataKey="day" 
                     stroke="#ffffff20" 
                     fontSize={10} 
                     tickLine={false} 
@@ -250,7 +307,7 @@ const Analytics = () => {
                   <Area 
                     type="monotone" 
                     dataKey="tasks" 
-                    stroke="#8b5cf6" 
+                    stroke={!isDemo ? "#10b981" : "#8b5cf6"} 
                     strokeWidth={4} 
                     fillOpacity={1} 
                     fill="url(#colorTasks)" 
@@ -409,7 +466,7 @@ const Analytics = () => {
                         <h5 className="text-sm font-bold text-white">{user.username}</h5>
                         <div className="flex items-center gap-3 mt-1">
                           <div className="flex-1 h-1 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: `${(user.completedCount / leaderboard[0].completedCount) * 100}%` }} />
+                            <div className="h-full bg-primary" style={{ width: `${(user.completedCount / (leaderboard[0]?.completedCount || 1)) * 100}%` }} />
                           </div>
                           <span className="text-[10px] font-black text-primary whitespace-nowrap">{user.completedCount} DONE</span>
                         </div>

@@ -3,7 +3,9 @@ import rateLimit from 'express-rate-limit';
 import { sendOTP } from '../controllers/auth/sendOtp.js';
 import { register } from '../controllers/auth/signup.js';
 import { login } from '../controllers/auth/login.js';
+import { logout } from '../controllers/auth/logout.js';
 import { resetPassword } from '../controllers/auth/resetPass.js';
+import { protect } from '../middleware/auth.js';
 import { 
   validateSignup, 
   validateLogin, 
@@ -34,5 +36,8 @@ router.post('/reset-password', resetPassword);
 
 // @desc    Authenticate user & get token
 router.post('/login', validateLogin, login);
+
+// @desc    Log out user & trigger activity
+router.post('/logout', protect, logout);
 
 export default router;

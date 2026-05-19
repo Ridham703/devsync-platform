@@ -11,30 +11,33 @@ import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
 
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ActivityProvider } from './contexts/ActivityContext';
 
 function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Pages */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
+      <ActivityProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Pages */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
 
-          {/* Protected Shell Pages (Internal Application) */}
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/kanban" element={<Kanban />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/analytics" element={<Analytics />} />
-          </Route>
+            {/* Protected Shell Pages (Internal Application) */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/kanban" element={<Kanban />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/analytics" element={<Analytics />} />
+            </Route>
 
-          {/* Fallback Redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Fallback Redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ActivityProvider>
     </ThemeProvider>
   );
 }

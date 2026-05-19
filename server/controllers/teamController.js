@@ -1,6 +1,7 @@
 import Team from '../models/Team.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 // @desc    Create a new team
 // @route   POST /api/teams
@@ -164,6 +165,15 @@ export const joinTeam = async (req, res) => {
         io.to(m.user.toString()).emit('member-joined', { teamId: team._id, user: req.user });
       });
     }
+
+    // Log Activity in global Live Activity Stream
+    await logActivity(io, {
+      user: req.user._id,
+      actionType: 'TEAM_JOINED',
+      message: 'joined team',
+      target: team.name,
+      teamId: team._id
+    });
 
     res.json({ message: 'Successfully joined the team', team });
   } catch (error) {

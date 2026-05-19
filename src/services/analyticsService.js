@@ -1,24 +1,22 @@
 import api from './api';
 
-export const getStatsSummary = async (projectId = 'all') => {
-  const response = await api.get(`/analytics/summary?projectId=${projectId}`);
-  return response.data;
-};
-
-export const getVelocity = async (filter = 'week', projectId = 'all') => {
-  const response = await api.get(`/analytics/velocity?filter=${filter}&projectId=${projectId}`);
-  return response.data;
-};
-
-export const getLeaderboard = async () => {
-  const response = await api.get('/analytics/leaderboard');
-  return response.data;
-};
-
-const analyticsService = {
-  getStatsSummary,
-  getVelocity,
-  getLeaderboard
+export const analyticsService = {
+  getDashboardAnalytics: async () => {
+    const res = await api.get('/analytics');
+    return res.data;
+  },
+  getStatsSummary: async (timeFilter = 'week', projectFilter = 'all') => {
+    const res = await api.get(`/analytics/summary?timeFilter=${timeFilter}&projectFilter=${projectFilter}`);
+    return res.data;
+  },
+  getVelocity: async (timeFilter = 'week', projectFilter = 'all') => {
+    const res = await api.get(`/analytics/velocity?timeFilter=${timeFilter}&projectFilter=${projectFilter}`);
+    return res.data;
+  },
+  getLeaderboard: async (timeFilter = 'week', projectFilter = 'all') => {
+    const res = await api.get(`/analytics/leaderboard?timeFilter=${timeFilter}&projectFilter=${projectFilter}`);
+    return res.data;
+  }
 };
 
 export default analyticsService;

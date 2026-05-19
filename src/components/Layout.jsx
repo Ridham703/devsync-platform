@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import QuickActions from './QuickActions';
 import { Bell, Search, User, MessageSquarePlus, Users, X, Check, Mail, CheckCircle2, Target, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { teamService } from '../services/teamService';
@@ -252,9 +253,7 @@ const Layout = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-5">
-            <button className="relative bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 p-2.5 rounded-xl transition-all text-muted-foreground hover:text-white">
-              <MessageSquarePlus size={18} />
-            </button>
+            <QuickActions />
             
             <div className="relative" ref={notificationRef}>
               <button 

@@ -19,9 +19,25 @@ export const loginUser = async (credentials) => {
   return response.data;
 };
 
-export const logoutUser = () => {
-  localStorage.removeItem('devsync_token');
-  localStorage.removeItem('devsync_user');
+export const logoutUser = async () => {
+  try {
+    await api.post('/auth/logout');
+  } catch (err) {
+    console.warn('[AuthService] Logout API request failed:', err.message);
+  } finally {
+    localStorage.removeItem('devsync_token');
+    localStorage.removeItem('devsync_user');
+    
+    // Disconnect Socket.IO client connection upon logout
+    try {
+      const socket = (await import('./socketService')).default;
+      if (socket && socket.connected) {
+        socket.disconnect();
+      }
+    } catch (e) {
+      console.warn('[AuthService] Could not cleanly disconnect socket:', e);
+    }
+  }
 };
 
 export const getCurrentUser = () => {

@@ -1,6 +1,7 @@
 import Task from '../models/Task.js';
 import Notification from '../models/Notification.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 // @desc    Get all tasks
 // @route   GET /api/tasks
@@ -41,6 +42,16 @@ export const createTask = async (req, res) => {
     if (io) {
       io.emit('task-created', savedTask);
     }
+
+    // Log in global Live Activity Stream
+    await logActivity(io, {
+      user: req.user._id,
+      actionType: 'TASK_CREATED',
+      message: 'created task',
+      target: savedTask.title,
+      projectId: savedTask.projectId,
+      teamId: savedTask.teamId
+    });
 
     // Create Activity Log
     await ActivityLog.create({
@@ -127,8 +138,39 @@ export const updateTask = async (req, res) => {
       });
     }
 
-    // Trigger Notifications
+    // Trigger Dynamic Activities for the Global Live Activity Stream
     const io = req.app.get('io');
+    if (io) {
+      if (req.body.status && req.body.status !== oldStatus) {
+        await logActivity(io, {
+          user: req.user._id,
+          actionType: 'TASK_MOVED',
+          message: `moved task to ${updatedTask.status}`,
+          target: updatedTask.title,
+          projectId: updatedTask.projectId,
+          teamId: updatedTask.teamId,
+          metadata: { from: oldStatus, to: updatedTask.status }
+        });
+      } else if (req.body.assignedTo && Array.isArray(req.body.assignedTo)) {
+        await logActivity(io, {
+          user: req.user._id,
+          actionType: 'TASK_ASSIGNED',
+          message: 'updated assignees for task',
+          target: updatedTask.title,
+          projectId: updatedTask.projectId,
+          teamId: updatedTask.teamId
+        });
+      } else {
+        await logActivity(io, {
+          user: req.user._id,
+          actionType: 'TASK_UPDATED',
+          message: 'updated task details',
+          target: updatedTask.title,
+          projectId: updatedTask.projectId,
+          teamId: updatedTask.teamId
+        });
+      }
+    }
     if (io) {
       // Notification for Status Change
       if (req.body.status && req.body.status !== oldStatus) {

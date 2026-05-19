@@ -1,5 +1,6 @@
 import User from '../../models/User.js';
 import { generateToken } from './helpers.js';
+import { logActivity } from '../../utils/activityLogger.js';
 
 // @desc    Authenticate user & get token
 // @route   POST /api/auth/login
@@ -22,6 +23,14 @@ export const login = async (req, res) => {
         console.log(`[AUTH-LOGIN] User not verified: ${email}`);
         return res.status(401).json({ message: 'Please verify your email before logging in' });
       }
+
+      // Log login activity in global Live Activity Stream
+      const io = req.app.get('io');
+      await logActivity(io, {
+        user: user._id,
+        actionType: 'USER_LOGIN',
+        message: 'logged in'
+      });
 
       res.json({
         _id: user._id,

@@ -3,6 +3,7 @@ import Message from '../models/Message.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 const router = express.Router();
 
@@ -100,6 +101,16 @@ router.post('/', protect, async (req, res) => {
     if (io && teamId) {
       io.to(teamId.toString()).emit('receive-message', savedMessage);
     }
+
+    // Log Activity in global Live Activity Stream
+    await logActivity(io, {
+      user: req.user._id,
+      actionType: 'MESSAGE_SENT',
+      message: 'sent a message',
+      target: text.length > 30 ? text.substring(0, 30) + '...' : text,
+      teamId: teamId || null,
+      metadata: { channel: channel || 'general' }
+    });
 
     res.status(201).json(savedMessage);
   } catch (error) {
