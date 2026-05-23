@@ -23,6 +23,7 @@ import analyticsRoutes from './routes/analytics.js';
 import searchRoutes from './routes/search.js';
 import commentRoutes from './routes/comments.js';
 import activityRoutes from './routes/activities.js';
+import { log } from 'console';
 
 const app = express();
 const server = http.createServer(app);
@@ -101,6 +102,10 @@ app.get('/', (req, res) => {
     message: 'DevSync Collab Server API is running!', 
     timestamp: new Date() 
   });
+});
+app.get("/ping",(req,res) => {
+  res.status(200).send("ok");
+  console.log("hello from ping");
 });
 
 // Connect Mongoose / Database Setup
@@ -198,9 +203,7 @@ io.on('connection', (socket) => {
     }
   });
 });
-app.get("/ping",(req,res) => {
-  res.status(200).send("ok");
-})
+
 
 // Start listening on configured port
 server.listen(PORT, () => {
