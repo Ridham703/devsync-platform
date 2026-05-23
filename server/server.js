@@ -198,6 +198,9 @@ io.on('connection', (socket) => {
     }
   });
 });
+app.get("/ping",(req,res) => {
+  res.status(200).send("ok");
+})
 
 // Start listening on configured port
 server.listen(PORT, () => {
