@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Mail, Lock, User, ArrowRight, ShieldAlert, ShieldCheck, KeyRound } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import authService from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 
 const Auth = () => {
+  const { isAuthenticated, login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  // If already authenticated, redirect to destination
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
+
   // Viewport Step Controller: 'form' | 'otp' | 'forgot' | 'reset'
   const [step, setStep] = useState('form');
   const [isLogin, setIsLogin] = useState(true);
@@ -23,10 +34,6 @@ const Auth = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  const navigate = useNavigate();
-  
-
 
   const clearForm = () => {
     setError('');
@@ -57,12 +64,18 @@ const Auth = () => {
     try {
       if (isLogin) {
         // Direct database check & session persist
-        await authService.loginUser({ email, password });
-        navigate('/dashboard');
+        const userData = await authService.loginUser({ email, password });
+        if (userData?.token) {
+          login(userData, userData.token);
+        }
+        navigate(from, { replace: true });
       } else {
         // Register with OTP
-        await authService.registerUser({ username: name, email, password, otp });
-        navigate('/dashboard');
+        const userData = await authService.registerUser({ username: name, email, password, otp });
+        if (userData?.token) {
+          login(userData, userData.token);
+        }
+        navigate(from, { replace: true });
       }
     } catch (err) {
       console.error('Form error:', err);

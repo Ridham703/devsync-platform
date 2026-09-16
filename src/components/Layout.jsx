@@ -13,9 +13,11 @@ import { cn } from '../lib/utils';
 
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Layout = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -28,7 +30,7 @@ const Layout = () => {
   
   const notificationRef = useRef(null);
   const searchRef = useRef(null);
-  const currentUser = authService.getCurrentUser();
+  const currentUser = authUser || authService.getCurrentUser();
 
   const fetchNotifications = async () => {
     try {
@@ -41,10 +43,7 @@ const Layout = () => {
   };
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate('/auth', { replace: true });
-      return;
-    }
+    if (!currentUser) return;
 
     fetchNotifications();
 
@@ -59,7 +58,7 @@ const Layout = () => {
     return () => {
       socket.off('notification:new');
     };
-  }, []);
+  }, [currentUser]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
