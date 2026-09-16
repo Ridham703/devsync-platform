@@ -21,6 +21,7 @@ const otpLimiter = rateLimit({
   message: { message: 'Too many OTP requests, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }
 });
 
 // @desc    Step 1: Send OTP for Signup or Reset

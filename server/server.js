@@ -28,6 +28,9 @@ import { log } from 'console';
 const app = express();
 const server = http.createServer(app);
 
+// Enable trust proxy for Render / reverse proxies (fixes express-rate-limit X-Forwarded-For warning)
+app.set('trust proxy', 1);
+
 // Security & Performance Middlewares
 const allowedOrigins = [
   'http://localhost:5173',
@@ -39,17 +42,18 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Dynamically allow any localhost or 127.0.0.1 port in development, or standard whitelisted domains
+    // Dynamically allow localhost, Vercel, Render subdomains, or configured CLIENT_URL
     if (
       !origin || 
       allowedOrigins.includes(origin) || 
       origin.endsWith('.vercel.app') ||
+      origin.endsWith('.onrender.com') ||
       /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
     ) {
       callback(null, true);
     } else {
       console.warn(`[SECURITY] CORS blocked for origin: ${origin}`);
-      callback(null, false); // Don't throw Error, just return false
+      callback(null, false);
     }
   },
   credentials: true,
@@ -69,14 +73,25 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 // Rate Limiting
-
-// Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 500, // Limit each IP to 500 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false }
 });
 app.use('/api/', limiter);
+
+// Prevent 10-second buffer timeouts when MongoDB is disconnected
+app.use('/api', (req, res, next) => {
+  if (mongoose.connection.readyState === 0) {
+    return res.status(503).json({
+      message: 'Database is not connected. In MongoDB Atlas, ensure Network Access allows 0.0.0.0/0 and MONGO_URI is set in Render Environment.'
+    });
+  }
+  next();
+});
 
 // Serve static files from uploads directory
 const __filename = fileURLToPath(import.meta.url);
@@ -100,10 +115,11 @@ app.use('/api/activities', activityRoutes);
 app.get('/', (req, res) => {
   res.json({ 
     message: 'DevSync Collab Server API is running!', 
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date() 
   });
 });
-app.get("/ping",(req,res) => {
+app.get("/ping", (req, res) => {
   res.status(200).send("ok");
   console.log("hello from ping");
 });
@@ -112,15 +128,24 @@ app.get("/ping",(req,res) => {
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/devsync';
 const PORT = process.env.PORT || 5000;
 
-console.log('⏳ Connecting to MongoDB...');
+const isAtlas = MONGO_URI.includes('mongodb+srv://');
+const maskedUri = isAtlas 
+  ? MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
+  : MONGO_URI;
+
+console.log(`⏳ Connecting to MongoDB (${maskedUri})...`);
+if (!process.env.MONGO_URI) {
+  console.warn('⚠️  WARNING: MONGO_URI environment variable is not defined! Using fallback to localhost.');
+}
+
 mongoose.connect(MONGO_URI, {
   serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
 })
   .then(() => console.log("✅ MongoDB Connected Successfully"))
   .catch(err => {
     console.error("❌ MongoDB Connection Error:", err.message);
-    if (err.message.includes('timeout')) {
-      console.log("💡 Suggestion: Check your Atlas IP whitelist or internet connection.");
+    if (err.message.includes('timeout') || isAtlas) {
+      console.log("💡 Tip for Render: In MongoDB Atlas -> Network Access -> Add IP Address -> Select 'Allow Access from Anywhere' (0.0.0.0/0).");
     }
   });
 
@@ -132,6 +157,7 @@ const io = new Server(server, {
         !origin || 
         allowedOrigins.includes(origin) || 
         origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com') ||
         /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
       ) {
         callback(null, true);
