@@ -1,49 +1,50 @@
 import nodemailer from 'nodemailer';
 
+const getEmailCredentials = () => {
+  const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+  let pass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').trim();
+  pass = pass.replace(/^["']|["']$/g, '');
+  return { user, pass };
+};
+
 /**
  * Configure production-ready Gmail transporter
  */
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // Use STARTTLS
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false // Helps in some restricted networks
-  },
-  connectionTimeout: 10000,
-  socketTimeout: 10000
-});
-
-// SMTP will be verified on first send attempt
+const getTransporter = () => {
+  const { user, pass } = getEmailCredentials();
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user,
+      pass
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
+};
 
 /**
  * Delivers transactional emails with professional formatting
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const { user, pass } = getEmailCredentials();
+  const from = process.env.EMAIL_FROM || user;
 
-  // Fallback to Ethereal ONLY if explicitly in test mode or if credentials are missing
-  if (process.env.NODE_ENV === 'test' || (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
-    console.log('[EMAIL] Using Ethereal fallback for test/dev mode...');
-    const testAccount = await nodemailer.createTestAccount();
-    const testTransporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass }
-    });
-    
-    const info = await testTransporter.sendMail({ from: '"DevSync Sandbox" <noreply@ethereal.email>', to, subject, html, text });
-    console.log('[EMAIL] Preview URL:', nodemailer.getTestMessageUrl(info));
-    return info;
+  // Require actual credentials so emails are actually delivered to user inbox
+  if (
+    !user || 
+    !pass || 
+    user.includes('your_email') || 
+    pass.includes('your_gmail')
+  ) {
+    console.error('❌ Email credentials missing or placeholder in server/.env');
+    throw new Error('Email credentials not configured. Please add EMAIL_USER and EMAIL_PASS (Gmail App Password) in server/.env to deliver emails to your inbox.');
   }
 
   try {
     console.log(`[EMAIL-DEBUG] Attempting to deliver email to ${to}...`);
+    const transporter = getTransporter();
     
     // Hard 20-second timeout to prevent hanging the API
     const emailPromise = transporter.sendMail({
@@ -56,7 +57,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
     });
 
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Email delivery timed out after 20 seconds')), 20000)
+      setTimeout(() => reject(new Error('Email delivery timed out after 20 seconds. Please check your Gmail App Password and network connection.')), 20000)
     );
 
     const info = await Promise.race([emailPromise, timeoutPromise]);

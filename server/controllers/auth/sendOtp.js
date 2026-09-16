@@ -32,7 +32,7 @@ export const sendOTP = async (req, res) => {
     await OTP.deleteMany({ email });
     await OTP.create({ email, otp });
 
-    // Send email (awaiting for reliability and immediate feedback)
+    // Send email to recipient
     try {
       const subject = type === 'signup' ? 'Verify Your DevSync Account' : 'DevSync Password Recovery';
       console.log(`[EMAIL-QUEUED] Sending ${type} OTP to ${email} with subject: ${subject}`);
@@ -44,22 +44,17 @@ export const sendOTP = async (req, res) => {
       });
     } catch (emailError) {
       console.error(`[EMAIL-ERROR] ${emailError.message}`);
-      
-      // Development mode fallback to avoid blocking the developer
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`💡 [DEV-MODE] Email delivery failed, but proceeding anyway. The OTP code is: ${otp}`);
-        return res.json({ 
-          message: 'OTP sent! (Development Mode: Verification code printed to backend terminal)',
-          devMode: true 
-        });
+      let userMsg = emailError.message || 'Failed to deliver OTP email.';
+      if (userMsg.includes('BadCredentials') || userMsg.includes('535')) {
+        userMsg = 'Gmail rejected credentials (BadCredentials). Please create a fresh App Password at myaccount.google.com/apppasswords and update SMTP_PASS in server/.env';
       }
-
-      // If email fails in production, tell the user it failed
-      return res.status(500).json({ message: 'Failed to deliver OTP email. Please check your email address or try again later.' });
+      return res.status(400).json({ 
+        message: userMsg 
+      });
     }
 
-    // Immediate response to frontend
-    res.json({ message: 'OTP sent! Please check your inbox (and spam).' });
+    // Success response - strictly hide OTP from client, only accessible via email
+    res.json({ message: 'OTP sent! Please check your inbox (and spam folder).' });
   } catch (error) {
     console.error(`[AUTH] OTP send failed for ${email}:`, error.message);
     res.status(500).json({ message: error.message });

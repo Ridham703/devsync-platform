@@ -1,10 +1,14 @@
 import axios from 'axios';
 
 // Base API configuration targeting Node server
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+let rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+rawApiUrl = rawApiUrl.replace(/\/+$/, '');
+if (!rawApiUrl.endsWith('/api')) {
+  rawApiUrl = `${rawApiUrl}/api`;
+}
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: rawApiUrl,
   timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json'
