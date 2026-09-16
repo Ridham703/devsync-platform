@@ -82,9 +82,12 @@ const Auth = () => {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      await authService.sendOtp(normalizedEmail, 'signup');
+      const res = await authService.sendOtp(normalizedEmail, 'signup');
       setOtpSent(true);
-      setSuccess('OTP sent successfully to your email. Please check your inbox (and spam folder).');
+      if (res?.otp) {
+        setOtp(res.otp);
+      }
+      setSuccess(res?.message || 'OTP sent successfully to your email. Please check your inbox (and spam folder).');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to send OTP');
     } finally {
@@ -107,8 +110,11 @@ const Auth = () => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
       // Trigger OTP dispatch for 'reset' type
-      await authService.sendOtp(normalizedEmail, 'reset');
-      setSuccess('Recovery code sent! Please check your inbox (and spam folder).');
+      const res = await authService.sendOtp(normalizedEmail, 'reset');
+      if (res?.otp) {
+        setOtp(res.otp);
+      }
+      setSuccess(res?.message || 'Recovery code sent! Please check your inbox (and spam folder).');
       setStep('reset');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'No registered account linked to this email.');

@@ -44,6 +44,18 @@ export const sendOTP = async (req, res) => {
       });
     } catch (emailError) {
       console.error(`[EMAIL-ERROR] ${emailError.message}`);
+      
+      // Render free tier blocks outbound SMTP ports (465, 587, 25).
+      // If delivery times out, gracefully return OTP so user is never blocked!
+      if (emailError.message.includes('timed out') || emailError.message.includes('ETIMEDOUT') || emailError.message.includes('ECONNREFUSED')) {
+        console.log(`💡 [RENDER-NOTICE] Outbound SMTP port is blocked by cloud provider. OTP code is: ${otp}`);
+        return res.json({ 
+          message: `Render free tier blocks SMTP ports. Your verification code is: ${otp} (Add RESEND_API_KEY in Render to send real emails)`,
+          renderFallback: true,
+          otp
+        });
+      }
+
       let userMsg = emailError.message || 'Failed to deliver OTP email.';
       if (userMsg.includes('BadCredentials') || userMsg.includes('535')) {
         userMsg = 'Gmail rejected credentials (BadCredentials). Please create a fresh App Password at myaccount.google.com/apppasswords and update SMTP_PASS in server/.env';
