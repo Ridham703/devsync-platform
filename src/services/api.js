@@ -29,24 +29,4 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token expiry / invalid credentials cleanly
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      const isAuthUrl = error.config?.url?.includes('/auth/login') || 
-                        error.config?.url?.includes('/auth/register') ||
-                        error.config?.url?.includes('/auth/send-otp');
-      if (!isAuthUrl) {
-        localStorage.removeItem('devsync_token');
-        localStorage.removeItem('devsync_user');
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/auth') {
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
 export default api;

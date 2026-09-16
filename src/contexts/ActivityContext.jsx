@@ -68,9 +68,6 @@ export const ActivityProvider = ({ children }) => {
 
   // Fetch paginated activities
   const fetchActivities = useCallback(async (filters = {}, loadMore = false) => {
-    const token = localStorage.getItem('devsync_token');
-    if (!token) return;
-
     try {
       setLoading(true);
       const nextPage = loadMore ? page + 1 : 1;
